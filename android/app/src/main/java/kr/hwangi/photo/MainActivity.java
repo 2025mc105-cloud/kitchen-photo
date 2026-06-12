@@ -38,10 +38,8 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new WebChromeClient(){
             @Override public void onPermissionRequest(final PermissionRequest req){
                 runOnUiThread(new Runnable(){ public void run(){
-                    if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-                     && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                        req.grant(req.getResources());
-                    } else { req.deny(); askPerms(); }
+                    if (webPermsOk(req)) req.grant(req.getResources());
+                    else { pendingReq = req; askPerms(); }
                 }});
             }
         });
@@ -51,6 +49,18 @@ public class MainActivity extends Activity {
         web.loadUrl(APP_URL);
     }
 
+    private PermissionRequest pendingReq;
+
+    private boolean webPermsOk(PermissionRequest req){
+        for (String r : req.getResources()){
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)
+             && checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) return false;
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)
+             && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) return false;
+        }
+        return true;
+    }
+
     private void askPerms(){
         if (checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
          || checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED){
@@ -58,9 +68,21 @@ public class MainActivity extends Activity {
         }
     }
 
+    @Override public void onRequestPermissionsResult(int code, String[] perms, int[] res){
+        super.onRequestPermissionsResult(code, perms, res);
+        if (pendingReq != null){
+            final PermissionRequest req = pendingReq; pendingReq = null;
+            runOnUiThread(new Runnable(){ public void run(){
+                try{ if (webPermsOk(req)) req.grant(req.getResources()); else req.deny(); }catch(Exception e){}
+            }});
+        }
+    }
+
     private boolean isShutterKey(int code){
         return code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN
-            || code == KeyEvent.KEYCODE_CAMERA || code == KeyEvent.KEYCODE_HEADSETHOOK;
+            || code == KeyEvent.KEYCODE_CAMERA || code == KeyEvent.KEYCODE_HEADSETHOOK
+            || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_DPAD_CENTER
+            || code == KeyEvent.KEYCODE_SPACE;
     }
 
     @Override public boolean onKeyDown(int code, KeyEvent ev){
