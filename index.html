@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v2</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v3</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -311,8 +311,10 @@ function renderFolder(){
 
 /* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
 let stream=null, camTrack=null, imgCap=null, hiQ=false, torchOn=false, wakeLock=null;
-let zoomCaps=null, curZoom=1, backCams=[], camIdx=0, sndOn=true;
-const ASPECTS=[{id:'full',label:'와이드',r:2.1645},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
+let zoomCaps=null, curZoom=1, backCams=[], sndOn=true;
+let mainDevId=null, curDevId=null, onAltLens=false;
+let uwDevId=null; try{ uwDevId = localStorage.getItem('cam_uw_dev')||null; }catch(e){}
+const ASPECTS=[{id:'full',label:'FULL',r:2.1645},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
 let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 
@@ -328,7 +330,7 @@ async function openCameraDev(devId){
       video:{ ...base, width:{ideal:4096}, height:{ideal:3072} }, audio:false
     });
   }catch(e){
-    if(devId){ toast('렌즈 전환 실패'); return; }
+    if(devId){ toast('렌즈 전환 실패 — 기본 렌즈로 복귀'); openCameraDev(null); return; }
     $('camInput').value=''; $('camInput').click(); return;
   }
   camTrack = stream.getVideoTracks()[0];
@@ -336,13 +338,16 @@ async function openCameraDev(devId){
   $('camVideo').srcObject = stream;
   $('camView').style.display='flex';
   $('lastTh').src=''; torchOn=false;
+  try{ curDevId = (camTrack.getSettings && camTrack.getSettings().deviceId) || devId || null; }catch(e){ curDevId = devId||null; }
+  if(!devId && !mainDevId) mainDevId = curDevId;
+  onAltLens = !!(mainDevId && curDevId && curDevId !== mainDevId);
   try{
     const caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
     $('torchBtn').style.display = caps.torch ? 'block' : 'none';
     zoomCaps = caps.zoom ? {min:caps.zoom.min, max:caps.zoom.max} : null;
   }catch(e){ $('torchBtn').style.display='none'; zoomCaps=null; }
   curZoom = 1;
-  if(zoomCaps) setZoom(1, true);
+  if(zoomCaps && !onAltLens) setZoom(1, true);
   if(!backCams.length){
     try{
       const ds = await navigator.mediaDevices.enumerateDevices();
@@ -354,6 +359,8 @@ async function openCameraDev(devId){
   startMediaSession();
   try{ if(navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
 }
+async function swapTo(devId){ stopTracks(); await openCameraDev(devId); }
+function saveUW(id){ uwDevId=id; try{ localStorage.setItem('cam_uw_dev', id); }catch(e){} }
 function stopTracks(){
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; camTrack=null; imgCap=null; }
 }
@@ -364,12 +371,32 @@ function closeCam(){
   $('camView').style.display='none';
   if(curFolder) renderFolder();
 }
-async function switchLens(){
-  if(backCams.length<2){ toast('전환할 다른 렌즈가 없습니다'); return; }
-  camIdx = (camIdx+1) % backCams.length;
-  stopTracks();
-  await openCameraDev(backCams[camIdx].deviceId);
-  toast('렌즈 전환: ' + (camIdx+1) + '/' + backCams.length);
+/* 0.6× 초광각: ① 메인렌즈가 0.6 줌을 지원하면 줌으로
+   ② 아니면 보조(초광각) 렌즈로 전환 — 한 번 찾으면 기억해서 다음부턴 즉시 전환
+   ③ 전환했는데 안 넓어졌으면 0.6×를 다시 눌러 다음 렌즈 시도 */
+async function handle06(){
+  if(onAltLens){
+    const alts = backCams.filter(d=>d.deviceId !== mainDevId);
+    if(alts.length < 2){ toast('이 폰이 제공하는 보조 렌즈는 이것뿐입니다'); return; }
+    const i = alts.findIndex(d=>d.deviceId === curDevId);
+    const next = alts[(i+1) % alts.length];
+    await swapTo(next.deviceId);
+    saveUW(next.deviceId);
+    toast('렌즈 시도 — 가장 넓게 보이면 그대로 쓰세요');
+    return;
+  }
+  if(zoomCaps && zoomCaps.min <= 0.65){ setZoom(0.6); return; }
+  let target = (uwDevId && backCams.some(d=>d.deviceId===uwDevId)) ? uwDevId
+             : (backCams.find(d=>d.deviceId !== mainDevId) || {}).deviceId;
+  if(!target){ toast('이 폰은 초광각 렌즈를 웹앱에 제공하지 않습니다'); return; }
+  await swapTo(target);
+  saveUW(target);
+  toast('0.6× 초광각 — 안 넓어졌으면 0.6×를 한 번 더 누르세요');
+}
+async function pressZoom(z){
+  if(onAltLens){ await swapTo(mainDevId); }
+  if(zoomCaps) setZoom(z);
+  else toast('줌 미지원 렌즈입니다');
 }
 function updateCamHead(){
   $('camFolder').textContent = FSHORT[curFolder] || '';
@@ -389,17 +416,20 @@ function camMove(dir){
 /* ── 줌 / 비율 / 소리 바 ── */
 function renderZoomBar(){
   const bar = $('camZoom'); bar.innerHTML='';
-  [0.6,1,2,3].forEach(z=>{
+  // 0.6× (초광각)
+  const b06 = document.createElement('button');
+  b06.className = 'zbtn' + ((onAltLens || (!onAltLens && Math.abs(curZoom-0.6)<0.05)) ? ' on':'');
+  b06.textContent = '0.6×';
+  b06.onclick = handle06;
+  bar.appendChild(b06);
+  // 1× / 2× / 3× (메인 렌즈 줌)
+  [1,2,3].forEach(z=>{
     const b = document.createElement('button');
-    b.className = 'zbtn' + (Math.abs(curZoom-z)<0.05 ? ' on':'');
+    b.className = 'zbtn' + ((!onAltLens && Math.abs(curZoom-z)<0.05) ? ' on':'');
     b.textContent = z + '×';
-    const ok = zoomCaps && z >= zoomCaps.min-0.001 && z <= zoomCaps.max+0.001;
+    const ok = !zoomCaps || (z >= zoomCaps.min-0.001 && z <= zoomCaps.max+0.001);
     if(!ok) b.classList.add('dim');
-    b.onclick = ()=>{
-      if(ok) setZoom(z);
-      else if(z < 1 && backCams.length > 1) switchLens();   // 0.6× 미지원 → 초광각 렌즈 시도
-      else toast('이 렌즈는 ' + z + '× 미지원');
-    };
+    b.onclick = ()=>pressZoom(z);
     bar.appendChild(b);
   });
   const a = document.createElement('button'); a.className='zbtn alt';
@@ -410,10 +440,6 @@ function renderZoomBar(){
     renderZoomBar(); toast('사진 비율: ' + ASPECTS[aspectIdx].label);
   };
   bar.appendChild(a);
-  if(backCams.length > 1){
-    const l = document.createElement('button'); l.className='zbtn alt'; l.textContent='렌즈⟳';
-    l.onclick = switchLens; bar.appendChild(l);
-  }
   const s = document.createElement('button'); s.className='zbtn alt';
   s.textContent = sndOn ? '🔊' : '🔇';
   s.onclick = ()=>{ sndOn=!sndOn; try{ localStorage.setItem('cam_snd', sndOn?'1':'0'); }catch(e){} renderZoomBar(); };
@@ -482,26 +508,27 @@ function toggleHQ(){
   toast(hiQ ? '고화질 모드 (12M급, 셔터 약간 느림)' : '고속 모드');
 }
 
-/* ── 찰칵 소리 (미디어 볼륨을 따름) ── */
+/* ── 셔터음: 실제 카메라 "찰칵" 기계음 (노이즈 2연타), 최대 음량 ──
+   ※ 실제 크기는 폰의 미디어 볼륨을 따릅니다 */
 let audioCtx=null;
+function shutterBurst(ctx, at, dur, hp, lp, vol){
+  const n = Math.max(1, Math.floor(ctx.sampleRate * dur));
+  const buf = ctx.createBuffer(1, n, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for(let i=0;i<n;i++){ const e = Math.pow(1 - i/n, 2.2); d[i] = (Math.random()*2-1) * e; }
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const hpf = ctx.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=hp;
+  const lpf = ctx.createBiquadFilter(); lpf.type='lowpass';  lpf.frequency.value=lp;
+  const g = ctx.createGain(); g.gain.value = vol;
+  src.connect(hpf); hpf.connect(lpf); lpf.connect(g); g.connect(ctx.destination);
+  src.start(ctx.currentTime + at);
+}
 function shutterSound(){
   try{
     audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
     if(audioCtx.state==='suspended') audioCtx.resume();
-    const t = audioCtx.currentTime;
-    const o1=audioCtx.createOscillator(), g1=audioCtx.createGain();
-    o1.type='square'; o1.frequency.value=1500;
-    g1.gain.setValueAtTime(0.3, t);
-    g1.gain.exponentialRampToValueAtTime(0.001, t+0.07);
-    o1.connect(g1); g1.connect(audioCtx.destination);
-    o1.start(t); o1.stop(t+0.08);
-    const o2=audioCtx.createOscillator(), g2=audioCtx.createGain();
-    o2.type='square'; o2.frequency.value=850;
-    g2.gain.setValueAtTime(0.0001, t);
-    g2.gain.setValueAtTime(0.25, t+0.07);
-    g2.gain.exponentialRampToValueAtTime(0.001, t+0.16);
-    o2.connect(g2); g2.connect(audioCtx.destination);
-    o2.start(t+0.07); o2.stop(t+0.17);
+    shutterBurst(audioCtx, 0,     0.028, 2200, 9500, 1.0);  // '찰' (날카로운 클릭)
+    shutterBurst(audioCtx, 0.052, 0.050, 700,  4500, 1.0);  // '칵' (낮고 둔탁한 클릭)
   }catch(e){}
 }
 
