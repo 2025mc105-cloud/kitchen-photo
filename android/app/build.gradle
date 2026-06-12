@@ -1,0 +1,13 @@
+plugins { id 'com.android.application' version '8.5.2' }
+android {
+    namespace 'kr.hwangi.photo'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'kr.hwangi.photo'
+        minSdk 29
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+    lint { abortOnError false }
+}
