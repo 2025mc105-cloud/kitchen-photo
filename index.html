@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v6</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v7</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -317,7 +317,7 @@ let uwDevId=null; try{ uwDevId = localStorage.getItem('cam_uw_dev')||null; }catc
 /* FULL = 이 폰 화면과 똑같은 비율(화면 꽉 참) */
 const SCR_R = (()=>{ try{ const w=screen.width||16, h=screen.height||9; return Math.max(w,h)/Math.min(w,h); }catch(e){ return 2.1645; } })();
 const ASPECTS=[{id:'full',label:'FULL',r:SCR_R},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
-let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v4'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
+let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v7'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 
 function camSupported(){
@@ -440,7 +440,7 @@ function renderZoomBar(){
   a.textContent = ASPECTS[aspectIdx].label;
   a.onclick = ()=>{
     aspectIdx = (aspectIdx+1) % ASPECTS.length;
-    try{ localStorage.setItem('cam_aspect_v4', ASPECTS[aspectIdx].id); }catch(e){}
+    try{ localStorage.setItem('cam_aspect_v7', ASPECTS[aspectIdx].id); }catch(e){}
     renderZoomBar(); toast('사진 비율: ' + ASPECTS[aspectIdx].label);
   };
   bar.appendChild(a);
@@ -549,10 +549,32 @@ function srcToBlob(src, w, h, ratio){
   c.getContext('2d').drawImage(src, sx, sy, tw, th, 0, 0, tw, th);
   return new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
 }
+/* 기기는 가로인데 영상이 세로로 남아있으면(WebView 미회전 버그) 프레임을 회전 */
+function rotateFrame(src, w, h, ang){
+  const c = document.createElement('canvas');
+  c.width = h; c.height = w;
+  const x = c.getContext('2d');
+  if(ang === 90){ x.translate(0, w); x.rotate(-Math.PI/2); }
+  else          { x.translate(h, 0); x.rotate( Math.PI/2); }
+  x.drawImage(src, 0, 0);
+  return c;
+}
+function fixOrient(src, w, h){
+  const ang = (screen.orientation && screen.orientation.angle) || 0;
+  if((ang === 90 || ang === 270) && h > w) return rotateFrame(src, w, h, ang);
+  return src;
+}
 async function snap(){
   if(!stream || snapBusy) return;
-  snapBusy = true; setTimeout(()=>snapBusy=false, 200);
+  snapBusy = true; setTimeout(()=>snapBusy=false, 250);
   const v = $('camVideo');
+  if(!v.videoWidth){ snapBusy=false; toast('카메라 준비 중…'); return; }
+  // ① 즉각 피드백 (저장은 백그라운드 — 반응속도 최우선)
+  lastSnapAt = Date.now(); micArmAt = Date.now() + 1500;
+  if(sndOn) shutterSound();
+  const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
+  try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
+  // ② 촬영 (가로회전 보정 포함)
   const ratio = ASPECTS[aspectIdx].r;
   let blob = null;
   if(hiQ && imgCap){
@@ -561,23 +583,34 @@ async function snap(){
       let bmp;
       try{ bmp = await createImageBitmap(pb, {imageOrientation:'from-image'}); }
       catch(e){ bmp = await createImageBitmap(pb); }
-      blob = await srcToBlob(bmp, bmp.width, bmp.height, ratio);
+      const fixedB = fixOrient(bmp, bmp.width, bmp.height);
+      blob = await srcToBlob(fixedB, fixedB.width||bmp.width, fixedB.height||bmp.height, ratio);
       if(bmp.close) bmp.close();
     }catch(e){ blob = null; }
   }
   if(!blob){
-    if(!v.videoWidth){ toast('카메라 준비 중…'); return; }
-    blob = await srcToBlob(v, v.videoWidth, v.videoHeight, ratio);
+    const fixed = fixOrient(v, v.videoWidth, v.videoHeight);
+    const fw = fixed === v ? v.videoWidth  : fixed.width;
+    const fh = fixed === v ? v.videoHeight : fixed.height;
+    blob = await srcToBlob(fixed, fw, fh, ratio);
   }
-  if(!blob){ toast('촬영 실패'); return; }
+  if(!blob){ toast('촬영 실패 — 다시 눌러주세요'); return; }
   addPhoto(curFolder, blob, Date.now());
-  lastSnapAt = Date.now(); micArmAt = Date.now() + 1500;   // 셔터음이 소리촬영을 재유발하지 않게
-  if(sndOn) shutterSound();
-  const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
-  try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
   $('lastTh').src = URL.createObjectURL(blob);
   updateCamHead();
 }
+/* 폰을 돌리면(APK WebView) 카메라 스트림을 재시작해 화면·사진 방향을 맞춤 */
+try{
+  if(screen.orientation && screen.orientation.addEventListener){
+    screen.orientation.addEventListener('change', ()=>{
+      if(stream && window.HwangiBridge){
+        const dev = curDevId;
+        stopTracks();
+        setTimeout(()=>{ if($('camView').style.display==='flex') openCameraDev(dev); }, 250);
+      }
+    });
+  }
+}catch(e){}
 function toggleHQ(){
   hiQ = !hiQ;
   $('hqBtn').textContent = hiQ ? '고화질' : '고속';
