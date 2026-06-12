@@ -55,7 +55,6 @@
   .ftitle{font-size:18px; font-weight:bold;}
   .fcount{color:var(--ok); font-size:14px;}
   .hint{font-size:13px; color:var(--warn); margin-bottom:10px; line-height:1.5;}
-  .shoot{width:100%; padding:20px; font-size:20px; border:none; border-radius:14px; background:var(--acc); color:#fff; font-weight:bold; margin-bottom:8px;}
   .gal{width:100%; padding:12px; font-size:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--sub); margin-bottom:12px;}
   .thumbs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .th{position:relative; border-radius:10px; overflow:hidden; border:1px solid var(--line); aspect-ratio:3/4; background:#000;}
@@ -65,21 +64,27 @@
   /* ───── 내장 카메라 ───── */
   .camview{position:fixed; inset:0; background:#000; display:none; flex-direction:column; z-index:80;}
   .camtop{
-    display:flex; align-items:center; gap:6px; padding:10px;
+    display:flex; align-items:center; gap:6px; padding:8px;
     background:#000c; position:absolute; top:0; left:0; right:0; z-index:82;
   }
-  .camtop .cbtn{background:#ffffff22; border:none; color:#fff; border-radius:10px; padding:10px 12px; font-size:16px;}
-  .camtitle{flex:1; text-align:center; font-size:16px; font-weight:bold; color:#fff;}
+  .camtop .cbtn{background:#ffffff22; border:none; color:#fff; border-radius:10px; padding:9px 11px; font-size:15px;}
+  .camtitle{flex:1; text-align:center; font-size:15px; font-weight:bold; color:#fff;}
   .camcnt{color:var(--ok); font-weight:bold;}
   #camVideo{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:81;}
+  .camzoom{
+    position:absolute; top:54px; left:0; right:0; z-index:82;
+    display:flex; gap:6px; justify-content:center; flex-wrap:wrap; padding:4px 8px;
+  }
+  .zbtn{background:#00000088; border:1px solid #ffffff44; color:#fff; border-radius:16px; padding:7px 12px; font-size:14px;}
+  .zbtn.on{background:var(--acc); border-color:var(--acc); font-weight:bold;}
+  .zbtn.dim{opacity:.4;}
+  .zbtn.alt{background:#ffffff22;}
   .cambottom{
     position:absolute; left:0; right:0; bottom:0; z-index:82; background:#000c;
-    display:flex; align-items:center; justify-content:space-between; padding:14px 22px calc(14px + env(safe-area-inset-bottom));
+    display:flex; align-items:center; justify-content:space-between; padding:12px 22px calc(12px + env(safe-area-inset-bottom));
   }
   .lastth{width:54px; height:54px; border-radius:10px; border:2px solid #fff7; object-fit:cover; background:#222;}
-  .shutter{
-    width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#ffffff44;
-  }
+  .shutter{width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#ffffff44;}
   .shutter:active{background:#fff;}
   .camside{width:54px; display:flex; flex-direction:column; gap:8px; align-items:center;}
   .flashfx{position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:90; transition:opacity .12s;}
@@ -103,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장</div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v2</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -139,12 +144,11 @@
     </div>
   </div>
   <div class="hint" id="fHint"></div>
-  <button class="shoot" onclick="openCamera()">📷 촬영하기 (연속)</button>
   <button class="gal" onclick="openGallery()">🖼 갤러리에서 가져오기 (여러 장 선택 가능)</button>
   <div class="thumbs" id="thumbs"></div>
   <div class="bottom">
     <button class="btn gray" onclick="goHome()">폴더 선택으로</button>
-    <button class="btn blue" onclick="openCamera()">📷 촬영</button>
+    <button class="btn blue" onclick="openCamera()">📷 촬영 (연속)</button>
   </div>
 </div>
 
@@ -158,6 +162,7 @@
     <button class="cbtn" onclick="camMove(1)">▶</button>
     <button class="cbtn" id="torchBtn" style="display:none" onclick="toggleTorch()">🔦</button>
   </div>
+  <div class="camzoom" id="camZoom"></div>
   <div class="cambottom">
     <img class="lastth" id="lastTh" alt="">
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
@@ -306,17 +311,26 @@ function renderFolder(){
 
 /* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
 let stream=null, camTrack=null, imgCap=null, hiQ=false, torchOn=false, wakeLock=null;
+let zoomCaps=null, curZoom=1, backCams=[], camIdx=0, sndOn=true;
+const ASPECTS=[{id:'full',label:'와이드',r:2.1645},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
+let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
+try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 
 function camSupported(){
   return window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
 }
-async function openCamera(){
-  if(!camSupported()){ $('camInput').value=''; $('camInput').click(); return; }  // 로컬파일/구형 → 기본 카메라
+async function openCamera(){ return openCameraDev(null); }
+async function openCameraDev(devId){
+  if(!camSupported()){ $('camInput').value=''; $('camInput').click(); return; }
+  const base = devId ? {deviceId:{exact:devId}} : {facingMode:{ideal:'environment'}};
   try{
     stream = await navigator.mediaDevices.getUserMedia({
-      video:{ facingMode:{ideal:'environment'}, width:{ideal:4096}, height:{ideal:3072} }, audio:false
+      video:{ ...base, width:{ideal:4096}, height:{ideal:3072} }, audio:false
     });
-  }catch(e){ $('camInput').value=''; $('camInput').click(); return; }
+  }catch(e){
+    if(devId){ toast('렌즈 전환 실패'); return; }
+    $('camInput').value=''; $('camInput').click(); return;
+  }
   camTrack = stream.getVideoTracks()[0];
   imgCap = (window.ImageCapture && camTrack) ? new ImageCapture(camTrack) : null;
   $('camVideo').srcObject = stream;
@@ -325,21 +339,43 @@ async function openCamera(){
   try{
     const caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
     $('torchBtn').style.display = caps.torch ? 'block' : 'none';
-  }catch(e){ $('torchBtn').style.display='none'; }
+    zoomCaps = caps.zoom ? {min:caps.zoom.min, max:caps.zoom.max} : null;
+  }catch(e){ $('torchBtn').style.display='none'; zoomCaps=null; }
+  curZoom = 1;
+  if(zoomCaps) setZoom(1, true);
+  if(!backCams.length){
+    try{
+      const ds = await navigator.mediaDevices.enumerateDevices();
+      backCams = ds.filter(d=>d.kind==='videoinput' && !/front|user|전면/i.test(d.label||''));
+    }catch(e){ backCams=[]; }
+  }
+  renderZoomBar();
   updateCamHead();
+  startMediaSession();
   try{ if(navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
 }
-function closeCam(){
+function stopTracks(){
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; camTrack=null; imgCap=null; }
+}
+function closeCam(){
+  stopTracks();
+  stopMediaSession();
   if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock=null; }
   $('camView').style.display='none';
   if(curFolder) renderFolder();
+}
+async function switchLens(){
+  if(backCams.length<2){ toast('전환할 다른 렌즈가 없습니다'); return; }
+  camIdx = (camIdx+1) % backCams.length;
+  stopTracks();
+  await openCameraDev(backCams[camIdx].deviceId);
+  toast('렌즈 전환: ' + (camIdx+1) + '/' + backCams.length);
 }
 function updateCamHead(){
   $('camFolder').textContent = FSHORT[curFolder] || '';
   $('camCnt').textContent = folderPhotos(curFolder).length;
 }
-function camMove(dir){     // 카메라 안에서 폴더 이동 (후드3 → 후드4 …)
+function camMove(dir){
   const i = FIDS.indexOf(curFolder);
   const ni = (i + dir + FIDS.length) % FIDS.length;
   curFolder = FIDS[ni];
@@ -349,43 +385,168 @@ function camMove(dir){     // 카메라 안에서 폴더 이동 (후드3 → 후
   updateCamHead();
   toast(FSHORT[curFolder] + ' 폴더로 전환');
 }
-let snapBusy=false;
-async function snap(){
-  if(!stream || snapBusy) return;
-  snapBusy = true;
-  setTimeout(()=>snapBusy=false, 250);   // 중복 터치 방지
-  const v = $('camVideo');
-  let blob = null;
-  if(hiQ && imgCap){
-    try{ blob = await imgCap.takePhoto(); }catch(e){ blob=null; }
+
+/* ── 줌 / 비율 / 소리 바 ── */
+function renderZoomBar(){
+  const bar = $('camZoom'); bar.innerHTML='';
+  [0.6,1,2,3].forEach(z=>{
+    const b = document.createElement('button');
+    b.className = 'zbtn' + (Math.abs(curZoom-z)<0.05 ? ' on':'');
+    b.textContent = z + '×';
+    const ok = zoomCaps && z >= zoomCaps.min-0.001 && z <= zoomCaps.max+0.001;
+    if(!ok) b.classList.add('dim');
+    b.onclick = ()=>{
+      if(ok) setZoom(z);
+      else if(z < 1 && backCams.length > 1) switchLens();   // 0.6× 미지원 → 초광각 렌즈 시도
+      else toast('이 렌즈는 ' + z + '× 미지원');
+    };
+    bar.appendChild(b);
+  });
+  const a = document.createElement('button'); a.className='zbtn alt';
+  a.textContent = ASPECTS[aspectIdx].label;
+  a.onclick = ()=>{
+    aspectIdx = (aspectIdx+1) % ASPECTS.length;
+    try{ localStorage.setItem('cam_aspect', ASPECTS[aspectIdx].id); }catch(e){}
+    renderZoomBar(); toast('사진 비율: ' + ASPECTS[aspectIdx].label);
+  };
+  bar.appendChild(a);
+  if(backCams.length > 1){
+    const l = document.createElement('button'); l.className='zbtn alt'; l.textContent='렌즈⟳';
+    l.onclick = switchLens; bar.appendChild(l);
   }
-  if(!blob){
-    const c = document.createElement('canvas');
-    c.width = v.videoWidth; c.height = v.videoHeight;
-    if(!c.width){ toast('카메라 준비 중…'); return; }
-    c.getContext('2d').drawImage(v,0,0);
-    blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
-  }
-  if(!blob){ toast('촬영 실패'); return; }
-  addPhoto(curFolder, blob, Date.now());
-  // 피드백: 플래시 + 진동 + 카운트 + 미니 썸네일
-  const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
-  try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
-  const u = URL.createObjectURL(blob); $('lastTh').src = u;
-  updateCamHead();
+  const s = document.createElement('button'); s.className='zbtn alt';
+  s.textContent = sndOn ? '🔊' : '🔇';
+  s.onclick = ()=>{ sndOn=!sndOn; try{ localStorage.setItem('cam_snd', sndOn?'1':'0'); }catch(e){} renderZoomBar(); };
+  bar.appendChild(s);
 }
-function toggleHQ(){
-  hiQ = !hiQ;
-  $('hqBtn').textContent = hiQ ? '고화질' : '고속';
-  toast(hiQ ? '고화질 모드 (셔터 약간 느림)' : '고속 모드');
+async function setZoom(z, silent){
+  if(!camTrack || !zoomCaps) return;
+  const v = Math.min(Math.max(z, zoomCaps.min), zoomCaps.max);
+  try{
+    await camTrack.applyConstraints({advanced:[{zoom:v}]});
+    curZoom = z; renderZoomBar();
+    if(!silent) toast(z + '×');
+  }catch(e){ if(!silent) toast('줌 적용 실패'); }
 }
 async function toggleTorch(){
   if(!camTrack) return;
   torchOn = !torchOn;
   try{ await camTrack.applyConstraints({advanced:[{torch:torchOn}]}); }catch(e){ torchOn=false; }
 }
+
+/* ── 촬영 (비율 크롭 + 소리) ── */
+let snapBusy=false;
+function cropRect(w,h,ratio){
+  const land = w >= h; let tw, th;
+  if(land){ if(w/h >= ratio){ th=h; tw=Math.round(h*ratio); } else { tw=w; th=Math.round(w/ratio); } }
+  else    { if(h/w >= ratio){ tw=w; th=Math.round(w*ratio); } else { th=h; tw=Math.round(h/ratio); } }
+  return {tw, th, sx:(w-tw)>>1, sy:(h-th)>>1};
+}
+function srcToBlob(src, w, h, ratio){
+  const {tw,th,sx,sy} = cropRect(w,h,ratio);
+  const c = document.createElement('canvas'); c.width=tw; c.height=th;
+  c.getContext('2d').drawImage(src, sx, sy, tw, th, 0, 0, tw, th);
+  return new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
+}
+async function snap(){
+  if(!stream || snapBusy) return;
+  snapBusy = true; setTimeout(()=>snapBusy=false, 200);
+  const v = $('camVideo');
+  const ratio = ASPECTS[aspectIdx].r;
+  let blob = null;
+  if(hiQ && imgCap){
+    try{
+      const pb = await imgCap.takePhoto();
+      let bmp;
+      try{ bmp = await createImageBitmap(pb, {imageOrientation:'from-image'}); }
+      catch(e){ bmp = await createImageBitmap(pb); }
+      blob = await srcToBlob(bmp, bmp.width, bmp.height, ratio);
+      if(bmp.close) bmp.close();
+    }catch(e){ blob = null; }
+  }
+  if(!blob){
+    if(!v.videoWidth){ toast('카메라 준비 중…'); return; }
+    blob = await srcToBlob(v, v.videoWidth, v.videoHeight, ratio);
+  }
+  if(!blob){ toast('촬영 실패'); return; }
+  addPhoto(curFolder, blob, Date.now());
+  if(sndOn) shutterSound();
+  const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
+  try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
+  $('lastTh').src = URL.createObjectURL(blob);
+  updateCamHead();
+}
+function toggleHQ(){
+  hiQ = !hiQ;
+  $('hqBtn').textContent = hiQ ? '고화질' : '고속';
+  toast(hiQ ? '고화질 모드 (12M급, 셔터 약간 느림)' : '고속 모드');
+}
+
+/* ── 찰칵 소리 (미디어 볼륨을 따름) ── */
+let audioCtx=null;
+function shutterSound(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const t = audioCtx.currentTime;
+    const o1=audioCtx.createOscillator(), g1=audioCtx.createGain();
+    o1.type='square'; o1.frequency.value=1500;
+    g1.gain.setValueAtTime(0.3, t);
+    g1.gain.exponentialRampToValueAtTime(0.001, t+0.07);
+    o1.connect(g1); g1.connect(audioCtx.destination);
+    o1.start(t); o1.stop(t+0.08);
+    const o2=audioCtx.createOscillator(), g2=audioCtx.createGain();
+    o2.type='square'; o2.frequency.value=850;
+    g2.gain.setValueAtTime(0.0001, t);
+    g2.gain.setValueAtTime(0.25, t+0.07);
+    g2.gain.exponentialRampToValueAtTime(0.001, t+0.16);
+    o2.connect(g2); g2.connect(audioCtx.destination);
+    o2.start(t+0.07); o2.stop(t+0.17);
+  }catch(e){}
+}
+
+/* ── 블루투스 리모컨(셀카봉) 셔터 ──
+   ① 키보드형 리모컨: Enter/Space/볼륨키 keydown
+   ② 미디어버튼형 리모컨: 무음 오디오 재생 + Media Session 핸들러 */
+window.addEventListener('keydown', e=>{
+  if($('camView').style.display!=='flex') return;
+  const k=e.key||'', c=e.code||'', kc=e.keyCode||0;
+  if(k==='Enter'||k===' '||c==='Enter'||c==='NumpadEnter'||c==='Space'
+     ||/AudioVolume(Up|Down)/i.test(k)||/Volume(Up|Down)/i.test(c)||kc===24||kc===25){
+    e.preventDefault(); snap();
+  }
+});
+let silentAudio=null;
+function makeSilentWav(){
+  const sr=8000, n=sr;
+  const buf=new ArrayBuffer(44+n*2); const v=new DataView(buf);
+  const ws=(o,s)=>{ for(let i=0;i<s.length;i++) v.setUint8(o+i, s.charCodeAt(i)); };
+  ws(0,'RIFF'); v.setUint32(4,36+n*2,true); ws(8,'WAVE'); ws(12,'fmt ');
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,sr,true); v.setUint32(28,sr*2,true); v.setUint16(32,2,true); v.setUint16(34,16,true);
+  ws(36,'data'); v.setUint32(40,n*2,true);
+  return new Blob([buf],{type:'audio/wav'});
+}
+function startMediaSession(){
+  try{
+    if(!silentAudio){
+      silentAudio = new Audio(URL.createObjectURL(makeSilentWav()));
+      silentAudio.loop = true; silentAudio.volume = 0.05;
+    }
+    silentAudio.play().catch(()=>{});
+    if('mediaSession' in navigator){
+      try{ navigator.mediaSession.metadata = new MediaMetadata({title:'환기사진 촬영 중'}); }catch(e){}
+      ['play','pause','stop','nexttrack','previoustrack','seekforward','seekbackward'].forEach(a=>{
+        try{ navigator.mediaSession.setActionHandler(a, ()=>{ snap(); try{ silentAudio.play().catch(()=>{}); }catch(e){} }); }catch(e){}
+      });
+    }
+  }catch(e){}
+}
+function stopMediaSession(){
+  try{ if(silentAudio) silentAudio.pause(); }catch(e){}
+}
 document.addEventListener('visibilitychange', ()=>{
-  if(document.hidden && stream) closeCam();   // 백그라운드 전환 시 카메라 해제(배터리)
+  if(document.hidden && stream) closeCam();
 });
 
 /* ───────── 기본 카메라(예비) / 갤러리 ───────── */
