@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#0f1419">
+<title>급식실 환기 사진</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<style>
+  :root{
+    --bg:#0f1419; --card:#1a2230; --card2:#223046; --line:#2e3d55;
+    --txt:#eaf0f8; --sub:#8fa3bf; --acc:#3b82f6; --ok:#22c55e; --warn:#f59e0b; --del:#ef4444;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  body{margin:0; background:var(--bg); color:var(--txt); font-family:'Malgun Gothic',system-ui,sans-serif;}
+  .view{max-width:560px; margin:0 auto; padding:12px 12px 90px;}
+  h1{font-size:20px; margin:6px 0 2px;}
+  .sub{color:var(--sub); font-size:13px; margin-bottom:10px;}
+  .banner{background:#7c2d12; color:#fde68a; padding:8px 10px; border-radius:8px; font-size:13px; margin-bottom:10px; display:none;}
+  .installbar{display:none; background:#173054; border:1px solid var(--acc); color:#cfe3ff; padding:10px; border-radius:10px; font-size:14px; margin-bottom:10px;}
+  .installbar button{float:right; background:var(--acc); border:none; color:#fff; padding:8px 14px; border-radius:8px; font-size:14px; font-weight:bold; margin-top:-4px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px;}
+  .row{display:flex; gap:8px; margin-bottom:8px;}
+  .row:last-child{margin-bottom:0;}
+  label{font-size:12px; color:var(--sub); display:block; margin-bottom:3px;}
+  input[type=text],input[type=number]{
+    width:100%; padding:10px; font-size:16px; border-radius:8px;
+    border:1px solid var(--line); background:var(--card2); color:var(--txt);
+  }
+  .foldername{font-size:14px; color:var(--ok); margin-top:8px; word-break:break-all;}
+  .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .fbtn{
+    position:relative; background:var(--card); border:1px solid var(--line); color:var(--txt);
+    border-radius:12px; padding:16px 6px; font-size:15px; text-align:center; cursor:pointer;
+  }
+  .fbtn.wide{grid-column:1/-1; padding:14px; font-size:16px;}
+  .fbtn.has{border-color:var(--ok); background:#14301f;}
+  .badge{
+    position:absolute; top:6px; right:6px; min-width:22px; height:22px; line-height:22px;
+    background:var(--acc); border-radius:11px; font-size:12px; padding:0 5px; display:none;
+  }
+  .fbtn.has .badge{display:block; background:var(--ok); color:#06250f; font-weight:bold;}
+  .bottom{
+    position:fixed; left:0; right:0; bottom:0; background:#0b0f14ee; border-top:1px solid var(--line);
+    display:flex; gap:8px; padding:10px 12px; max-width:584px; margin:0 auto;
+  }
+  .btn{flex:1; padding:14px 8px; font-size:16px; border:none; border-radius:10px; cursor:pointer; color:#fff; font-weight:bold;}
+  .btn.blue{background:var(--acc);} .btn.green{background:var(--ok); color:#06250f;}
+  .btn.gray{background:#374151;} .btn.red{background:var(--del);} .btn.warn{background:var(--warn); color:#3b2300;}
+  /* 폴더 화면 */
+  .fhead{display:flex; align-items:center; gap:10px; margin:4px 0 10px;}
+  .back{background:var(--card2); border:1px solid var(--line); color:var(--txt); border-radius:10px; padding:10px 14px; font-size:16px;}
+  .ftitle{font-size:18px; font-weight:bold;}
+  .fcount{color:var(--ok); font-size:14px;}
+  .hint{font-size:13px; color:var(--warn); margin-bottom:10px; line-height:1.5;}
+  .shoot{width:100%; padding:20px; font-size:20px; border:none; border-radius:14px; background:var(--acc); color:#fff; font-weight:bold; margin-bottom:8px;}
+  .gal{width:100%; padding:12px; font-size:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--sub); margin-bottom:12px;}
+  .thumbs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
+  .th{position:relative; border-radius:10px; overflow:hidden; border:1px solid var(--line); aspect-ratio:3/4; background:#000;}
+  .th img{width:100%; height:100%; object-fit:cover;}
+  .th .no{position:absolute; left:4px; top:4px; background:#000a; padding:2px 7px; border-radius:6px; font-size:13px; font-weight:bold;}
+  .th .del{position:absolute; right:4px; top:4px; background:var(--del); border:none; color:#fff; width:30px; height:30px; border-radius:8px; font-size:15px;}
+  /* ───── 내장 카메라 ───── */
+  .camview{position:fixed; inset:0; background:#000; display:none; flex-direction:column; z-index:80;}
+  .camtop{
+    display:flex; align-items:center; gap:6px; padding:10px;
+    background:#000c; position:absolute; top:0; left:0; right:0; z-index:82;
+  }
+  .camtop .cbtn{background:#ffffff22; border:none; color:#fff; border-radius:10px; padding:10px 12px; font-size:16px;}
+  .camtitle{flex:1; text-align:center; font-size:16px; font-weight:bold; color:#fff;}
+  .camcnt{color:var(--ok); font-weight:bold;}
+  #camVideo{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:81;}
+  .cambottom{
+    position:absolute; left:0; right:0; bottom:0; z-index:82; background:#000c;
+    display:flex; align-items:center; justify-content:space-between; padding:14px 22px calc(14px + env(safe-area-inset-bottom));
+  }
+  .lastth{width:54px; height:54px; border-radius:10px; border:2px solid #fff7; object-fit:cover; background:#222;}
+  .shutter{
+    width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#ffffff44;
+  }
+  .shutter:active{background:#fff;}
+  .camside{width:54px; display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .flashfx{position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:90; transition:opacity .12s;}
+  /* 오버레이/진행/토스트 */
+  .overlay{position:fixed; inset:0; background:#000d; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; z-index:50;}
+  .overlay .msg{font-size:20px; color:var(--ok); font-weight:bold;}
+  .overlay .cnt{font-size:15px; color:var(--sub);}
+  .overlay .btn{flex:none; width:100%; max-width:380px; padding:20px; font-size:20px;}
+  .prog{position:fixed; inset:0; background:#000c; display:none; align-items:center; justify-content:center; z-index:60;}
+  .pbox{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:22px; width:84%; max-width:360px; text-align:center;}
+  .pbar{height:12px; background:var(--card2); border-radius:6px; overflow:hidden; margin-top:12px;}
+  .pfill{height:100%; width:0%; background:var(--ok);}
+  .toast{
+    position:fixed; bottom:96px; left:50%; transform:translateX(-50%); background:#111c; color:#fff;
+    padding:10px 18px; border-radius:20px; font-size:14px; display:none; z-index:95; white-space:nowrap;
+  }
+</style>
+</head>
+<body>
+
+<!-- ───────── 홈 화면 ───────── -->
+<div class="view" id="homeView">
+  <h1>📷 급식실 환기 사진</h1>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장</div>
+  <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
+  <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
+
+  <div class="card">
+    <div class="row">
+      <div style="flex:0 0 30%"><label>번호</label><input type="number" id="schNum" placeholder="27"></div>
+      <div style="flex:1"><label>학교명</label><input type="text" id="schName" placeholder="오금초등학교"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1"><label>월</label><input type="number" id="schM"></div>
+      <div style="flex:1"><label>일</label><input type="number" id="schD"></div>
+      <div style="flex:1"><label>시</label><input type="number" id="schH"></div>
+    </div>
+    <div class="foldername" id="folderPreview"></div>
+  </div>
+
+  <div class="grid" id="folderGrid"></div>
+
+  <div class="bottom">
+    <button class="btn red" style="flex:0 0 28%" onclick="resetAll()">전체삭제</button>
+    <button class="btn warn" style="flex:0 0 24%" onclick="exportZip(true)">공유</button>
+    <button class="btn green" onclick="exportZip(false)">ZIP 내보내기</button>
+  </div>
+</div>
+
+<!-- ───────── 폴더 화면 ───────── -->
+<div class="view" id="folderView" style="display:none">
+  <div class="fhead">
+    <button class="back" onclick="goHome()">← 뒤로</button>
+    <div>
+      <div class="ftitle" id="fTitle"></div>
+      <div class="fcount"><span id="fCnt">0</span>장</div>
+    </div>
+  </div>
+  <div class="hint" id="fHint"></div>
+  <button class="shoot" onclick="openCamera()">📷 촬영하기 (연속)</button>
+  <button class="gal" onclick="openGallery()">🖼 갤러리에서 가져오기 (여러 장 선택 가능)</button>
+  <div class="thumbs" id="thumbs"></div>
+  <div class="bottom">
+    <button class="btn gray" onclick="goHome()">폴더 선택으로</button>
+    <button class="btn blue" onclick="openCamera()">📷 촬영</button>
+  </div>
+</div>
+
+<!-- ───────── 내장 카메라 (연속촬영) ───────── -->
+<div class="camview" id="camView">
+  <video id="camVideo" playsinline autoplay muted></video>
+  <div class="camtop">
+    <button class="cbtn" onclick="closeCam()">✕ 닫기</button>
+    <button class="cbtn" onclick="camMove(-1)">◀</button>
+    <div class="camtitle"><span id="camFolder"></span> · <span class="camcnt" id="camCnt">0</span>장</div>
+    <button class="cbtn" onclick="camMove(1)">▶</button>
+    <button class="cbtn" id="torchBtn" style="display:none" onclick="toggleTorch()">🔦</button>
+  </div>
+  <div class="cambottom">
+    <img class="lastth" id="lastTh" alt="">
+    <button class="shutter" id="shutterBtn" onclick="snap()"></button>
+    <div class="camside">
+      <button class="cbtn" id="hqBtn" onclick="toggleHQ()" style="font-size:13px">고속</button>
+    </div>
+  </div>
+</div>
+<div class="flashfx" id="flashFx"></div>
+
+<!-- 기본카메라(예비) 촬영 후 오버레이 -->
+<div class="overlay" id="overlay">
+  <div class="msg">✓ 저장됨</div>
+  <div class="cnt" id="ovInfo"></div>
+  <button class="btn blue" onclick="hideOverlay(); openCamera();">📷 다음 사진 촬영</button>
+  <button class="btn gray" onclick="hideOverlay()">그만 (목록 보기)</button>
+</div>
+
+<!-- 진행률 -->
+<div class="prog" id="prog">
+  <div class="pbox">
+    <div id="progMsg">ZIP 만드는 중…</div>
+    <div class="pbar"><div class="pfill" id="pfill"></div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<input type="file" id="camInput" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="galInput" accept="image/*" multiple style="display:none">
+
+<script>
+'use strict';
+/* ───────── 폴더 정의 ───────── */
+const FOLDERS = [{id:'doc', label:'📋 점검기록지 (수기 기록지)', short:'점검기록지', wide:true},
+                 {id:'base', label:'🏫 기본 사진 (급식실 전경·스티커)', short:'기본 사진', wide:true}];
+for (let i=1;i<=15;i++) FOLDERS.push({id:'h'+i, label:'후드'+i, short:'후드'+i});
+const FLABEL={}, FSHORT={}, FIDS=[];
+FOLDERS.forEach(f=>{FLABEL[f.id]=f.label; FSHORT[f.id]=f.short; FIDS.push(f.id);});
+
+let photos = [];          // {id, fid, ts, seq, blob}
+let seqCounter = 1;
+let curFolder = null;
+let db = null, idbOK = false;
+const thumbURL = {};
+
+/* ───────── IndexedDB ───────── */
+function openDB(){
+  return new Promise(res=>{
+    try{
+      const rq = indexedDB.open('gimsil_photo_app', 1);
+      rq.onupgradeneeded = ()=>{ rq.result.createObjectStore('photos', {keyPath:'id'}); };
+      rq.onsuccess = ()=>{ db=rq.result; idbOK=true; res(true); };
+      rq.onerror   = ()=>res(false);
+      rq.onblocked = ()=>res(false);
+    }catch(e){ res(false); }
+  });
+}
+function idbPut(rec){ if(!idbOK) return; try{ db.transaction('photos','readwrite').objectStore('photos').put(rec); }catch(e){} }
+function idbDel(id){ if(!idbOK) return; try{ db.transaction('photos','readwrite').objectStore('photos').delete(id); }catch(e){} }
+function idbClear(){ if(!idbOK) return; try{ db.transaction('photos','readwrite').objectStore('photos').clear(); }catch(e){} }
+function idbLoadAll(){
+  return new Promise(res=>{
+    if(!idbOK) return res([]);
+    try{
+      const rq = db.transaction('photos','readonly').objectStore('photos').getAll();
+      rq.onsuccess = ()=>res(rq.result||[]); rq.onerror = ()=>res([]);
+    }catch(e){ res([]); }
+  });
+}
+
+/* ───────── 학교 정보 ───────── */
+const $ = id=>document.getElementById(id);
+function loadMeta(){
+  let m = {};
+  try{ m = JSON.parse(localStorage.getItem('school_meta')||'{}'); }catch(e){}
+  const now = new Date();
+  $('schNum').value  = m.num  ?? '';
+  $('schName').value = m.name ?? '';
+  $('schM').value = m.m ?? (now.getMonth()+1);
+  $('schD').value = m.d ?? now.getDate();
+  $('schH').value = m.h ?? now.getHours();
+}
+function saveMeta(){
+  const m = {num:$('schNum').value, name:$('schName').value, m:$('schM').value, d:$('schD').value, h:$('schH').value};
+  try{ localStorage.setItem('school_meta', JSON.stringify(m)); }catch(e){}
+  $('folderPreview').textContent = '폴더명: ' + schoolFolderName();
+}
+function schoolFolderName(){
+  const num = $('schNum').value.trim();
+  const name = $('schName').value.trim() || '학교명미입력';
+  return (num? num+'_':'') + name + '(' + ($('schM').value||'?') + '월' + ($('schD').value||'?') + '일 ' + ($('schH').value||'?') + '시)';
+}
+['schNum','schName','schM','schD','schH'].forEach(id=>$(id).addEventListener('input', saveMeta));
+
+/* ───────── 홈 화면 ───────── */
+function renderHome(){
+  const grid = $('folderGrid'); grid.innerHTML='';
+  let total = 0;
+  FOLDERS.forEach(f=>{
+    const n = photos.filter(p=>p.fid===f.id).length; total += n;
+    const b = document.createElement('button');
+    b.className = 'fbtn' + (f.wide?' wide':'') + (n>0?' has':'');
+    b.innerHTML = f.label + '<span class="badge">'+n+'</span>';
+    b.onclick = ()=>openFolder(f.id);
+    grid.appendChild(b);
+  });
+  $('totalCnt').textContent = total;
+}
+
+/* ───────── 폴더 화면 ───────── */
+function openFolder(fid){
+  curFolder = fid;
+  $('homeView').style.display='none';
+  $('folderView').style.display='block';
+  $('fTitle').textContent = FLABEL[fid];
+  $('fHint').textContent = fid.startsWith('h')
+    ? '※ 1번째 사진 = 후드 전경(00번), 2번째부터 = 풍속 측정값(01번~). 잘못 찍으면 ✕로 지우고 다시 촬영하세요.'
+    : (fid==='doc' ? '※ 수기 점검기록지를 또렷하게(그림자 없이) 촬영하세요. 여러 장 가능.'
+                   : '※ 급식실 전경·배기 스티커 등 기본 사진을 촬영하세요.');
+  renderFolder();
+  window.scrollTo(0,0);
+}
+function goHome(){
+  curFolder = null;
+  $('folderView').style.display='none';
+  $('homeView').style.display='block';
+  renderHome();
+}
+function folderPhotos(fid){ return photos.filter(p=>p.fid===fid).sort((a,b)=>a.seq-b.seq); }
+function renderFolder(){
+  const list = folderPhotos(curFolder);
+  $('fCnt').textContent = list.length;
+  const tdiv = $('thumbs'); tdiv.innerHTML='';
+  list.forEach((p,i)=>{
+    if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
+    const d = document.createElement('div'); d.className='th';
+    const tag = curFolder.startsWith('h') ? String(i).padStart(2,'0') : (i+1)+'번';
+    d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
+    const del = document.createElement('button'); del.className='del'; del.textContent='✕';
+    del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
+    d.appendChild(del);
+    tdiv.appendChild(d);
+  });
+}
+
+/* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
+let stream=null, camTrack=null, imgCap=null, hiQ=false, torchOn=false, wakeLock=null;
+
+function camSupported(){
+  return window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+}
+async function openCamera(){
+  if(!camSupported()){ $('camInput').value=''; $('camInput').click(); return; }  // 로컬파일/구형 → 기본 카메라
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:4096}, height:{ideal:3072} }, audio:false
+    });
+  }catch(e){ $('camInput').value=''; $('camInput').click(); return; }
+  camTrack = stream.getVideoTracks()[0];
+  imgCap = (window.ImageCapture && camTrack) ? new ImageCapture(camTrack) : null;
+  $('camVideo').srcObject = stream;
+  $('camView').style.display='flex';
+  $('lastTh').src=''; torchOn=false;
+  try{
+    const caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
+    $('torchBtn').style.display = caps.torch ? 'block' : 'none';
+  }catch(e){ $('torchBtn').style.display='none'; }
+  updateCamHead();
+  try{ if(navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
+}
+function closeCam(){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; camTrack=null; imgCap=null; }
+  if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock=null; }
+  $('camView').style.display='none';
+  if(curFolder) renderFolder();
+}
+function updateCamHead(){
+  $('camFolder').textContent = FSHORT[curFolder] || '';
+  $('camCnt').textContent = folderPhotos(curFolder).length;
+}
+function camMove(dir){     // 카메라 안에서 폴더 이동 (후드3 → 후드4 …)
+  const i = FIDS.indexOf(curFolder);
+  const ni = (i + dir + FIDS.length) % FIDS.length;
+  curFolder = FIDS[ni];
+  $('fTitle').textContent = FLABEL[curFolder];
+  $('fHint').textContent = '';
+  $('lastTh').src='';
+  updateCamHead();
+  toast(FSHORT[curFolder] + ' 폴더로 전환');
+}
+let snapBusy=false;
+async function snap(){
+  if(!stream || snapBusy) return;
+  snapBusy = true;
+  setTimeout(()=>snapBusy=false, 250);   // 중복 터치 방지
+  const v = $('camVideo');
+  let blob = null;
+  if(hiQ && imgCap){
+    try{ blob = await imgCap.takePhoto(); }catch(e){ blob=null; }
+  }
+  if(!blob){
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    if(!c.width){ toast('카메라 준비 중…'); return; }
+    c.getContext('2d').drawImage(v,0,0);
+    blob = await new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
+  }
+  if(!blob){ toast('촬영 실패'); return; }
+  addPhoto(curFolder, blob, Date.now());
+  // 피드백: 플래시 + 진동 + 카운트 + 미니 썸네일
+  const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
+  try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
+  const u = URL.createObjectURL(blob); $('lastTh').src = u;
+  updateCamHead();
+}
+function toggleHQ(){
+  hiQ = !hiQ;
+  $('hqBtn').textContent = hiQ ? '고화질' : '고속';
+  toast(hiQ ? '고화질 모드 (셔터 약간 느림)' : '고속 모드');
+}
+async function toggleTorch(){
+  if(!camTrack) return;
+  torchOn = !torchOn;
+  try{ await camTrack.applyConstraints({advanced:[{torch:torchOn}]}); }catch(e){ torchOn=false; }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden && stream) closeCam();   // 백그라운드 전환 시 카메라 해제(배터리)
+});
+
+/* ───────── 기본 카메라(예비) / 갤러리 ───────── */
+function openGallery(){ $('galInput').value=''; $('galInput').click(); }
+$('camInput').addEventListener('change', e=>{
+  const f = e.target.files && e.target.files[0];
+  if(!f || !curFolder) return;
+  addPhoto(curFolder, f, Date.now());
+  renderFolder();
+  $('ovInfo').textContent = FLABEL[curFolder] + ' · 현재 ' + folderPhotos(curFolder).length + '장';
+  $('overlay').style.display='flex';
+});
+$('galInput').addEventListener('change', e=>{
+  const fs = Array.from(e.target.files||[]);
+  if(!fs.length || !curFolder) return;
+  fs.sort((a,b)=>(a.lastModified||0)-(b.lastModified||0));
+  fs.forEach(f=>addPhoto(curFolder, f, f.lastModified||Date.now()));
+  renderFolder();
+  toast(fs.length+'장 추가됨');
+});
+function hideOverlay(){ $('overlay').style.display='none'; }
+
+function addPhoto(fid, blob, ts){
+  const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid, ts, seq: seqCounter++, blob};
+  photos.push(rec);
+  idbPut(rec);
+}
+function removePhoto(id){
+  photos = photos.filter(p=>p.id!==id);
+  if(thumbURL[id]){ URL.revokeObjectURL(thumbURL[id]); delete thumbURL[id]; }
+  idbDel(id);
+  renderFolder();
+}
+function resetAll(){
+  const total = photos.length;
+  if(!total){ toast('사진이 없습니다'); return; }
+  if(!confirm('사진 '+total+'장을 모두 삭제하고 새 학교를 시작할까요?')) return;
+  if(!confirm('정말 삭제합니다. ZIP 내보내기는 하셨나요?')) return;
+  photos.forEach(p=>{ if(thumbURL[p.id]){URL.revokeObjectURL(thumbURL[p.id]); delete thumbURL[p.id];} });
+  photos = []; idbClear(); renderHome(); toast('전체 삭제 완료');
+}
+
+/* ───────── 파일명 ───────── */
+function pad(n,len){ return String(n).padStart(len,'0'); }
+function tsName(ts){
+  const d = new Date(ts);
+  return ''+d.getFullYear()+pad(d.getMonth()+1,2)+pad(d.getDate(),2)+'_'+pad(d.getHours(),2)+pad(d.getMinutes(),2)+pad(d.getSeconds(),2);
+}
+function extOf(blob){
+  const t = (blob.type||'').toLowerCase();
+  if(t.includes('png')) return '.png';
+  return '.jpg';
+}
+
+/* ───────── ZIP (STORE, UTF-8 파일명) ───────── */
+const CRC_TABLE = (()=>{ const t=new Uint32Array(256);
+  for(let i=0;i<256;i++){ let c=i; for(let k=0;k<8;k++) c = (c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[i]=c>>>0; }
+  return t; })();
+function crcUpdate(buf, crc){
+  for(let i=0;i<buf.length;i++) crc = CRC_TABLE[(crc^buf[i])&0xFF] ^ (crc>>>8);
+  return crc;
+}
+function dosDT(d){
+  const time = ((d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1)) & 0xFFFF;
+  const date = (((Math.max(d.getFullYear(),1980)-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate()) & 0xFFFF;
+  return {time,date};
+}
+async function buildZip(entries, onProg){
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  for(let fi=0; fi<entries.length; fi++){
+    const en = entries[fi];
+    const nameB = enc.encode(en.path);
+    const data = new Uint8Array(await en.blob.arrayBuffer());
+    let crc = 0xFFFFFFFF;
+    const CHUNK = 1<<20;
+    for(let p=0; p<data.length; p+=CHUNK){
+      crc = crcUpdate(data.subarray(p, Math.min(p+CHUNK, data.length)), crc);
+    }
+    crc = (crc ^ 0xFFFFFFFF) >>> 0;
+    const size = en.blob.size;
+    const {time,date} = dosDT(new Date(en.ts||Date.now()));
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true); lh.setUint16(6,0x0800,true);
+    lh.setUint16(8,0,true); lh.setUint16(10,time,true); lh.setUint16(12,date,true);
+    lh.setUint32(14,crc,true); lh.setUint32(18,size,true); lh.setUint32(22,size,true);
+    lh.setUint16(26,nameB.length,true); lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer), nameB, en.blob);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true); ch.setUint16(4,20,true); ch.setUint16(6,20,true);
+    ch.setUint16(8,0x0800,true); ch.setUint16(10,0,true); ch.setUint16(12,time,true); ch.setUint16(14,date,true);
+    ch.setUint32(16,crc,true); ch.setUint32(20,size,true); ch.setUint32(24,size,true);
+    ch.setUint16(28,nameB.length,true); ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer), nameB);
+    offset += 30 + nameB.length + size;
+    if(onProg) onProg((fi+1)/entries.length);
+    await new Promise(r=>setTimeout(r));
+  }
+  let cdSize = 0; central.forEach(u=>cdSize+=u.length);
+  const eo = new DataView(new ArrayBuffer(22));
+  eo.setUint32(0,0x06054b50,true);
+  eo.setUint16(8,entries.length,true); eo.setUint16(10,entries.length,true);
+  eo.setUint32(12,cdSize,true); eo.setUint32(16,offset,true);
+  return new Blob([...parts, ...central, new Uint8Array(eo.buffer)], {type:'application/zip'});
+}
+
+/* ───────── 내보내기 ───────── */
+function buildEntries(){
+  const root = schoolFolderName();
+  const entries = [];
+  const used = new Set();
+  function uniq(path){
+    if(!used.has(path)){ used.add(path); return path; }
+    let i=1, p;
+    const dot = path.lastIndexOf('.');
+    do{ p = path.slice(0,dot)+'_'+(i++)+path.slice(dot); }while(used.has(p));
+    used.add(p); return p;
+  }
+  folderPhotos('doc').forEach(p=>entries.push({path: uniq(root+'/'+tsName(p.ts)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
+  folderPhotos('base').forEach(p=>entries.push({path: uniq(root+'/기본 사진/'+tsName(p.ts)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
+  for(let i=1;i<=15;i++){
+    folderPhotos('h'+i).forEach((p,idx)=>entries.push({path: uniq(root+'/후드'+i+' 사진/'+pad(idx,2)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
+  }
+  return entries;
+}
+async function exportZip(share){
+  if(!photos.length){ alert('저장된 사진이 없습니다.'); return; }
+  if(!$('schName').value.trim()){ alert('학교명을 입력해 주세요.'); $('schName').focus(); return; }
+  const entries = buildEntries();
+  $('prog').style.display='flex'; $('progMsg').textContent='ZIP 만드는 중… ('+entries.length+'장)';
+  try{
+    const zip = await buildZip(entries, r=>{ $('pfill').style.width = Math.round(r*100)+'%'; });
+    const fname = schoolFolderName()+'.zip';
+    if(share && navigator.canShare){
+      const file = new File([zip], fname, {type:'application/zip'});
+      if(navigator.canShare({files:[file]})){
+        $('prog').style.display='none';
+        await navigator.share({files:[file], title:fname}).catch(()=>{});
+        return;
+      }
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zip); a.download = fname;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    $('prog').style.display='none';
+    toast('다운로드 폴더에 저장: '+fname);
+  }catch(err){
+    $('prog').style.display='none';
+    alert('내보내기 실패: '+err);
+  }
+}
+
+/* ───────── PWA 설치 / 서비스워커 ───────── */
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); deferredPrompt = e;
+  $('installBar').style.display='block';
+});
+async function doInstall(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice.catch(()=>{});
+  deferredPrompt = null;
+  $('installBar').style.display='none';
+}
+window.addEventListener('appinstalled', ()=>{ $('installBar').style.display='none'; toast('앱 설치 완료!'); });
+if('serviceWorker' in navigator && location.protocol === 'https:'){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+/* ───────── 기타 ───────── */
+let toastTimer = null;
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.style.display='block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.style.display='none', 2200);
+}
+window.addEventListener('beforeunload', e=>{
+  if(photos.length && !idbOK){ e.preventDefault(); e.returnValue=''; }
+});
+
+/* ───────── 시작 ───────── */
+(async function init(){
+  loadMeta(); saveMeta();
+  const ok = await openDB();
+  if(ok){
+    const recs = await idbLoadAll();
+    recs.sort((a,b)=>a.seq-b.seq);
+    photos = recs;
+    seqCounter = recs.length ? Math.max(...recs.map(r=>r.seq||0))+1 : 1;
+  }else{
+    $('storeBanner').style.display='block';
+  }
+  renderHome();
+})();
+</script>
+</body>
+</html>
