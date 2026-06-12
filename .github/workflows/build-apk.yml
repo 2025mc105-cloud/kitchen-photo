@@ -24,6 +24,7 @@ jobs:
       - name: Gradle wrapper 8.7
         run: |
           mkdir -p "$RUNNER_TEMP/wr" && cd "$RUNNER_TEMP/wr"
+          echo "rootProject.name='wr'" > settings.gradle
           gradle wrapper --gradle-version 8.7 --no-daemon
           cp -r gradlew gradle "$GITHUB_WORKSPACE/android/"
       - name: Build APK
