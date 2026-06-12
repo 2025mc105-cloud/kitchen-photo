@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v4</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v5</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -494,7 +494,7 @@ async function toggleMic(){
     micAnalyser.getByteTimeDomainData(data);
     let peak = 0;
     for(let i=0;i<data.length;i++){ const v = Math.abs(data[i]-128); if(v>peak) peak = v; }
-    if(peak > 62 && Date.now() > micArmAt && Date.now()-lastSnapAt > 1800) snap();
+    if(peak > 62 && Date.now() > micArmAt){ micArmAt = Date.now() + 2500; snap(); }   // 감지 즉시 2.5초 잠금 → 1장만
     micRAF = requestAnimationFrame(loop);
   };
   loop();
