@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v5</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v6</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -612,6 +612,13 @@ function shutterSound(){
    ① 키보드형 리모컨: Enter/Space/볼륨키 keydown
    ② 미디어버튼형 리모컨: 무음 오디오 재생 + Media Session 핸들러
    ※ 볼륨키 전용 리모컨은 안드로이드가 신호를 웹앱에 주지 않아 동작하지 않습니다 */
+/* ── APK(네이티브 앱) 연동 훅: 볼륨키 셔터 / 뒤로가기 ── */
+window.__btShutter = function(){ if($('camView').style.display==='flex') snap(); };
+window.__btBack = function(){
+  if($('camView').style.display==='flex'){ closeCam(); return 'handled'; }
+  if($('folderView').style.display!=='none'){ goHome(); return 'handled'; }
+  return 'exit';
+};
 window.addEventListener('keydown', e=>{
   if($('camView').style.display!=='flex') return;
   const k=e.key||'', c=e.code||'', kc=e.keyCode||0;
@@ -785,6 +792,23 @@ async function exportZip(share){
   try{
     const zip = await buildZip(entries, r=>{ $('pfill').style.width = Math.round(r*100)+'%'; });
     const fname = schoolFolderName()+'.zip';
+    if(window.HwangiBridge){   // APK 안에서는 네이티브 브리지로 다운로드 폴더에 저장
+      $('progMsg').textContent='파일 저장 중…';
+      const CH = 3*1024*1024;
+      HwangiBridge.start(fname);
+      for(let p=0; p<zip.size; p+=CH){
+        const buf = new Uint8Array(await zip.slice(p, Math.min(p+CH, zip.size)).arrayBuffer());
+        let bin=''; const SUB=32768;
+        for(let q=0; q<buf.length; q+=SUB) bin += String.fromCharCode.apply(null, buf.subarray(q, Math.min(q+SUB, buf.length)));
+        HwangiBridge.append(btoa(bin));
+        $('pfill').style.width = Math.round(100*Math.min(p+CH,zip.size)/zip.size)+'%';
+        await new Promise(r=>setTimeout(r));
+      }
+      HwangiBridge.finish();
+      $('prog').style.display='none';
+      toast('다운로드 폴더에 저장: '+fname);
+      return;
+    }
     if(share && navigator.canShare){
       const file = new File([zip], fname, {type:'application/zip'});
       if(navigator.canShare({files:[file]})){
