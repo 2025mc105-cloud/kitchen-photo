@@ -61,26 +61,26 @@
   .th img{width:100%; height:100%; object-fit:cover;}
   .th .no{position:absolute; left:4px; top:4px; background:#000a; padding:2px 7px; border-radius:6px; font-size:13px; font-weight:bold;}
   .th .del{position:absolute; right:4px; top:4px; background:var(--del); border:none; color:#fff; width:30px; height:30px; border-radius:8px; font-size:15px;}
-  /* ───── 내장 카메라 ───── */
+  /* ───── 내장 카메라 (전체화면 프리뷰 + 반투명 컨트롤) ───── */
   .camview{position:fixed; inset:0; background:#000; display:none; flex-direction:column; z-index:80;}
   .camtop{
     display:flex; align-items:center; gap:6px; padding:8px;
-    background:#000c; position:absolute; top:0; left:0; right:0; z-index:82;
+    background:rgba(0,0,0,.28); position:absolute; top:0; left:0; right:0; z-index:82;
   }
-  .camtop .cbtn{background:#ffffff22; border:none; color:#fff; border-radius:10px; padding:9px 11px; font-size:15px;}
-  .camtitle{flex:1; text-align:center; font-size:15px; font-weight:bold; color:#fff;}
+  .camtop .cbtn{background:#00000055; border:1px solid #ffffff33; color:#fff; border-radius:10px; padding:9px 11px; font-size:15px;}
+  .camtitle{flex:1; text-align:center; font-size:15px; font-weight:bold; color:#fff; text-shadow:0 1px 3px #000;}
   .camcnt{color:var(--ok); font-weight:bold;}
   #camVideo{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:81;}
   .camzoom{
     position:absolute; top:54px; left:0; right:0; z-index:82;
     display:flex; gap:6px; justify-content:center; flex-wrap:wrap; padding:4px 8px;
   }
-  .zbtn{background:#00000088; border:1px solid #ffffff44; color:#fff; border-radius:16px; padding:7px 12px; font-size:14px;}
+  .zbtn{background:#00000066; border:1px solid #ffffff44; color:#fff; border-radius:16px; padding:7px 12px; font-size:14px; text-shadow:0 1px 2px #000;}
   .zbtn.on{background:var(--acc); border-color:var(--acc); font-weight:bold;}
   .zbtn.dim{opacity:.4;}
-  .zbtn.alt{background:#ffffff22;}
+  .zbtn.alt{background:#00000044;}
   .cambottom{
-    position:absolute; left:0; right:0; bottom:0; z-index:82; background:#000c;
+    position:absolute; left:0; right:0; bottom:0; z-index:82; background:rgba(0,0,0,.22);
     display:flex; align-items:center; justify-content:space-between; padding:12px 22px calc(12px + env(safe-area-inset-bottom));
   }
   .lastth{width:54px; height:54px; border-radius:10px; border:2px solid #fff7; object-fit:cover; background:#222;}
@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v3</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v4</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -314,8 +314,10 @@ let stream=null, camTrack=null, imgCap=null, hiQ=false, torchOn=false, wakeLock=
 let zoomCaps=null, curZoom=1, backCams=[], sndOn=true;
 let mainDevId=null, curDevId=null, onAltLens=false;
 let uwDevId=null; try{ uwDevId = localStorage.getItem('cam_uw_dev')||null; }catch(e){}
-const ASPECTS=[{id:'full',label:'FULL',r:2.1645},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
-let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
+/* FULL = 이 폰 화면과 똑같은 비율(화면 꽉 참) */
+const SCR_R = (()=>{ try{ const w=screen.width||16, h=screen.height||9; return Math.max(w,h)/Math.min(w,h); }catch(e){ return 2.1645; } })();
+const ASPECTS=[{id:'full',label:'FULL',r:SCR_R},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
+let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v4'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 
 function camSupported(){
@@ -367,6 +369,8 @@ function stopTracks(){
 function closeCam(){
   stopTracks();
   stopMediaSession();
+  stopMic();
+  intOn=false; if(intTimer){ clearTimeout(intTimer); intTimer=null; }
   if(wakeLock){ try{ wakeLock.release(); }catch(e){} wakeLock=null; }
   $('camView').style.display='none';
   if(curFolder) renderFolder();
@@ -413,7 +417,7 @@ function camMove(dir){
   toast(FSHORT[curFolder] + ' 폴더로 전환');
 }
 
-/* ── 줌 / 비율 / 소리 바 ── */
+/* ── 줌 / 비율 / 소리촬영 / 자동촬영 바 ── */
 function renderZoomBar(){
   const bar = $('camZoom'); bar.innerHTML='';
   // 0.6× (초광각)
@@ -436,10 +440,20 @@ function renderZoomBar(){
   a.textContent = ASPECTS[aspectIdx].label;
   a.onclick = ()=>{
     aspectIdx = (aspectIdx+1) % ASPECTS.length;
-    try{ localStorage.setItem('cam_aspect', ASPECTS[aspectIdx].id); }catch(e){}
+    try{ localStorage.setItem('cam_aspect_v4', ASPECTS[aspectIdx].id); }catch(e){}
     renderZoomBar(); toast('사진 비율: ' + ASPECTS[aspectIdx].label);
   };
   bar.appendChild(a);
+  // 📢 소리 촬영 (박수·구호)
+  const m = document.createElement('button'); m.className='zbtn alt' + (micOn?' on':'');
+  m.textContent = '📢' + (micOn?'ON':'');
+  m.onclick = toggleMic;
+  bar.appendChild(m);
+  // ⏱ 3초 자동촬영
+  const it = document.createElement('button'); it.className='zbtn alt' + (intOn?' on':'');
+  it.textContent = '⏱3초' + (intOn?'ON':'');
+  it.onclick = toggleInterval;
+  bar.appendChild(it);
   const s = document.createElement('button'); s.className='zbtn alt';
   s.textContent = sndOn ? '🔊' : '🔇';
   s.onclick = ()=>{ sndOn=!sndOn; try{ localStorage.setItem('cam_snd', sndOn?'1':'0'); }catch(e){} renderZoomBar(); };
@@ -458,6 +472,67 @@ async function toggleTorch(){
   if(!camTrack) return;
   torchOn = !torchOn;
   try{ await camTrack.applyConstraints({advanced:[{torch:torchOn}]}); }catch(e){ torchOn=false; }
+}
+
+/* ── 📢 소리 촬영: 박수·"찍어" 같은 큰 소리에 셔터 ── */
+let micOn=false, micStream=null, micCtx=null, micAnalyser=null, micRAF=null, lastSnapAt=0, micArmAt=0;
+async function toggleMic(){
+  if(micOn){ stopMic(); renderZoomBar(); toast('소리 촬영 OFF'); return; }
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+  }catch(e){ toast('마이크 권한이 필요합니다'); return; }
+  try{
+    micCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const src = micCtx.createMediaStreamSource(micStream);
+    micAnalyser = micCtx.createAnalyser(); micAnalyser.fftSize = 512;
+    src.connect(micAnalyser);
+  }catch(e){ stopMic(); toast('마이크 초기화 실패'); return; }
+  micOn = true; micArmAt = Date.now() + 1000;
+  const data = new Uint8Array(micAnalyser.fftSize);
+  const loop = ()=>{
+    if(!micOn) return;
+    micAnalyser.getByteTimeDomainData(data);
+    let peak = 0;
+    for(let i=0;i<data.length;i++){ const v = Math.abs(data[i]-128); if(v>peak) peak = v; }
+    if(peak > 62 && Date.now() > micArmAt && Date.now()-lastSnapAt > 1800) snap();
+    micRAF = requestAnimationFrame(loop);
+  };
+  loop();
+  renderZoomBar();
+  toast('소리 촬영 ON — 박수 치거나 크게 외치면 찍힙니다');
+}
+function stopMic(){
+  micOn = false;
+  if(micRAF){ cancelAnimationFrame(micRAF); micRAF=null; }
+  try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  micStream=null;
+  try{ micCtx && micCtx.close(); }catch(e){}
+  micCtx=null; micAnalyser=null;
+}
+
+/* ── ⏱ 3초 자동촬영: 1초마다 틱 → 3초마다 한 장 ── */
+let intOn=false, intTimer=null;
+function tickSound(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const t=audioCtx.currentTime;
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.type='sine'; o.frequency.value=1000;
+    g.gain.setValueAtTime(0.35,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t); o.stop(t+0.06);
+  }catch(e){}
+}
+function toggleInterval(){
+  intOn = !intOn;
+  if(intOn){ toast('3초 간격 자동촬영 ON'); intTick(3); }
+  else { clearTimeout(intTimer); intTimer=null; toast('자동촬영 OFF'); }
+  renderZoomBar();
+}
+function intTick(n){
+  if(!intOn || !stream) { intOn=false; renderZoomBar(); return; }
+  if(n > 0){ tickSound(); intTimer = setTimeout(()=>intTick(n-1), 1000); }
+  else { snap(); intTimer = setTimeout(()=>intTick(3), 1000); }
 }
 
 /* ── 촬영 (비율 크롭 + 소리) ── */
@@ -496,6 +571,7 @@ async function snap(){
   }
   if(!blob){ toast('촬영 실패'); return; }
   addPhoto(curFolder, blob, Date.now());
+  lastSnapAt = Date.now(); micArmAt = Date.now() + 1500;   // 셔터음이 소리촬영을 재유발하지 않게
   if(sndOn) shutterSound();
   const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
   try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
@@ -534,7 +610,8 @@ function shutterSound(){
 
 /* ── 블루투스 리모컨(셀카봉) 셔터 ──
    ① 키보드형 리모컨: Enter/Space/볼륨키 keydown
-   ② 미디어버튼형 리모컨: 무음 오디오 재생 + Media Session 핸들러 */
+   ② 미디어버튼형 리모컨: 무음 오디오 재생 + Media Session 핸들러
+   ※ 볼륨키 전용 리모컨은 안드로이드가 신호를 웹앱에 주지 않아 동작하지 않습니다 */
 window.addEventListener('keydown', e=>{
   if($('camView').style.display!=='flex') return;
   const k=e.key||'', c=e.code||'', kc=e.keyCode||0;
