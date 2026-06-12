@@ -1,5 +1,5 @@
 /* 급식실 환기 사진앱 — 서비스 워커 (오프라인 동작 + 자동 업데이트) */
-const CACHE = 'hwangi-v7';
+const CACHE = 'hwangi-v8';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v7</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v8</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -404,7 +404,7 @@ async function pressZoom(z){
 }
 function updateCamHead(){
   $('camFolder').textContent = FSHORT[curFolder] || '';
-  $('camCnt').textContent = folderPhotos(curFolder).length;
+  $('camCnt').textContent = folderPhotos(curFolder).length + (typeof pendCount==='function' ? pendCount(curFolder) : 0);
 }
 function camMove(dir){
   const i = FIDS.indexOf(curFolder);
@@ -480,7 +480,13 @@ async function toggleMic(){
   if(micOn){ stopMic(); renderZoomBar(); toast('소리 촬영 OFF'); return; }
   try{
     micStream = await navigator.mediaDevices.getUserMedia({audio:true});
-  }catch(e){ toast('마이크 권한이 필요합니다'); return; }
+  }catch(e){
+    if(window.HwangiBridge && HwangiBridge.openSettings){
+      toast('설정에서 [권한 → 마이크]를 허용해 주세요');
+      try{ HwangiBridge.openSettings(); }catch(_){}
+    }else toast('마이크 권한이 필요합니다');
+    return;
+  }
   try{
     micCtx = new (window.AudioContext||window.webkitAudioContext)();
     const src = micCtx.createMediaStreamSource(micStream);
@@ -549,7 +555,20 @@ function srcToBlob(src, w, h, ratio){
   c.getContext('2d').drawImage(src, sx, sy, tw, th, 0, 0, tw, th);
   return new Promise(r=>c.toBlob(r,'image/jpeg',0.92));
 }
-/* 기기는 가로인데 영상이 세로로 남아있으면(WebView 미회전 버그) 프레임을 회전 */
+/* ── 기기 실제 방향: 화면회전 + (회전잠금 대비) 중력센서 ── */
+let gAccX = 0, gAccY = 0;
+window.addEventListener('devicemotion', e=>{
+  const a = e.accelerationIncludingGravity; if(!a) return;
+  gAccX = gAccX*0.7 + (a.x||0)*0.3;
+  gAccY = gAccY*0.7 + (a.y||0)*0.3;
+});
+function calcRot(w, h){
+  if(w >= h) return 0;                                   // 프레임이 이미 가로
+  const ang = (screen.orientation && screen.orientation.angle) || 0;
+  if(ang === 90 || ang === 270) return ang;              // 화면이 실제로 회전한 경우
+  if(Math.abs(gAccX) > 5 && Math.abs(gAccX) > Math.abs(gAccY)) return gAccX > 0 ? 90 : 270; // 회전잠금: 센서 판정
+  return 0;
+}
 function rotateFrame(src, w, h, ang){
   const c = document.createElement('canvas');
   c.width = h; c.height = w;
@@ -559,43 +578,94 @@ function rotateFrame(src, w, h, ang){
   x.drawImage(src, 0, 0);
   return c;
 }
-function fixOrient(src, w, h){
-  const ang = (screen.orientation && screen.orientation.angle) || 0;
-  if((ang === 90 || ang === 270) && h > w) return rotateFrame(src, w, h, ang);
-  return src;
+/* ── 백그라운드 인코딩 워커 (셔터 즉시 → 저장은 뒤에서) ── */
+let encWorker = null, encOK = false;
+const pendingShots = {};   // id -> {fid, ts, seq}
+function pendCount(fid){ let n=0; for(const k in pendingShots) if(pendingShots[k].fid===fid) n++; return n; }
+function initWorker(){
+  if(encWorker !== null) return;
+  try{
+    if(typeof OffscreenCanvas === 'undefined' || !OffscreenCanvas.prototype.convertToBlob){ encWorker = false; return; }
+    const src = `self.onmessage = async e => {
+      const d = e.data;
+      try{
+        let rw = d.W, rh = d.H, srcC = d.bmp;
+        if(d.rot === 90 || d.rot === 270){
+          rw = d.H; rh = d.W;
+          const t = new OffscreenCanvas(rw, rh);
+          const tx = t.getContext('2d');
+          if(d.rot === 90){ tx.translate(0, rh); tx.rotate(-Math.PI/2); }
+          else            { tx.translate(rw, 0); tx.rotate( Math.PI/2); }
+          tx.drawImage(d.bmp, 0, 0);
+          srcC = t;
+        }
+        const land = rw >= rh; let tw, th;
+        if(land){ if(rw/rh >= d.ratio){ th=rh; tw=Math.round(rh*d.ratio); } else { tw=rw; th=Math.round(rw/d.ratio); } }
+        else    { if(rh/rw >= d.ratio){ tw=rw; th=Math.round(rw*d.ratio); } else { th=rh; tw=Math.round(rh/d.ratio); } }
+        const sx=(rw-tw)>>1, sy=(rh-th)>>1;
+        const out = new OffscreenCanvas(tw, th);
+        out.getContext('2d').drawImage(srcC, sx, sy, tw, th, 0, 0, tw, th);
+        if(d.bmp.close) d.bmp.close();
+        const blob = await out.convertToBlob({type:'image/jpeg', quality:0.88});
+        self.postMessage({id:d.id, blob:blob});
+      }catch(err){ self.postMessage({id:d.id, blob:null}); }
+    };`;
+    encWorker = new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
+    encWorker.onmessage = ev => finishShot(ev.data.id, ev.data.blob);
+    encOK = true;
+  }catch(e){ encWorker = false; encOK = false; }
+}
+function finishShot(id, blob){
+  const meta = pendingShots[id]; delete pendingShots[id];
+  if(!meta){ return; }
+  if(!blob){ toast('1장 저장 실패'); updateCamHead(); return; }
+  const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob};
+  photos.push(rec); idbPut(rec);
+  if($('camView').style.display==='flex' && curFolder===meta.fid) $('lastTh').src = URL.createObjectURL(blob);
+  updateCamHead();
+  if($('folderView').style.display!=='none' && $('camView').style.display!=='flex' && curFolder===meta.fid) renderFolder();
 }
 async function snap(){
   if(!stream || snapBusy) return;
-  snapBusy = true; setTimeout(()=>snapBusy=false, 250);
+  snapBusy = true; setTimeout(()=>snapBusy=false, 200);
   const v = $('camVideo');
   if(!v.videoWidth){ snapBusy=false; toast('카메라 준비 중…'); return; }
-  // ① 즉각 피드백 (저장은 백그라운드 — 반응속도 최우선)
+  // ① 즉각 피드백
   lastSnapAt = Date.now(); micArmAt = Date.now() + 1500;
   if(sndOn) shutterSound();
   const fx = $('flashFx'); fx.style.opacity='0.7'; setTimeout(()=>fx.style.opacity='0', 120);
   try{ navigator.vibrate && navigator.vibrate(40); }catch(e){}
-  // ② 촬영 (가로회전 보정 포함)
   const ratio = ASPECTS[aspectIdx].r;
-  let blob = null;
-  if(hiQ && imgCap){
-    try{
-      const pb = await imgCap.takePhoto();
-      let bmp;
-      try{ bmp = await createImageBitmap(pb, {imageOrientation:'from-image'}); }
-      catch(e){ bmp = await createImageBitmap(pb); }
-      const fixedB = fixOrient(bmp, bmp.width, bmp.height);
-      blob = await srcToBlob(fixedB, fixedB.width||bmp.width, fixedB.height||bmp.height, ratio);
-      if(bmp.close) bmp.close();
-    }catch(e){ blob = null; }
+  const meta = {fid: curFolder, ts: Date.now(), seq: seqCounter++};
+  initWorker();
+  // ② 비트맵만 빠르게 떠서 워커로 전달 → 회전·자르기·압축·저장은 백그라운드
+  if(encOK){
+    let bmp = null;
+    if(hiQ && imgCap){
+      try{
+        const pb = await imgCap.takePhoto();
+        try{ bmp = await createImageBitmap(pb, {imageOrientation:'from-image'}); }
+        catch(e){ bmp = await createImageBitmap(pb); }
+      }catch(e){ bmp = null; }
+    }
+    if(!bmp){ try{ bmp = await createImageBitmap(v); }catch(e){ bmp = null; } }
+    if(bmp){
+      const rot = calcRot(bmp.width, bmp.height);
+      const id = 'p' + meta.seq;
+      pendingShots[id] = meta;
+      updateCamHead();
+      encWorker.postMessage({id, bmp, rot, ratio, W:bmp.width, H:bmp.height}, [bmp]);
+      return;
+    }
   }
-  if(!blob){
-    const fixed = fixOrient(v, v.videoWidth, v.videoHeight);
-    const fw = fixed === v ? v.videoWidth  : fixed.width;
-    const fh = fixed === v ? v.videoHeight : fixed.height;
-    blob = await srcToBlob(fixed, fw, fh, ratio);
-  }
+  // ③ 예비 경로 (워커 미지원 기기)
+  const rot = calcRot(v.videoWidth, v.videoHeight);
+  let srcEl = v, sw = v.videoWidth, sh = v.videoHeight;
+  if(rot){ srcEl = rotateFrame(v, sw, sh, rot); sw = srcEl.width; sh = srcEl.height; }
+  const blob = await srcToBlob(srcEl, sw, sh, ratio);
   if(!blob){ toast('촬영 실패 — 다시 눌러주세요'); return; }
-  addPhoto(curFolder, blob, Date.now());
+  photos.push({id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob});
+  idbPut(photos[photos.length-1]);
   $('lastTh').src = URL.createObjectURL(blob);
   updateCamHead();
 }
@@ -818,6 +888,7 @@ function buildEntries(){
   return entries;
 }
 async function exportZip(share){
+  if(typeof pendingShots !== 'undefined' && Object.keys(pendingShots).length){ toast('사진 저장 마무리 중… 2초 후 다시 눌러주세요'); return; }
   if(!photos.length){ alert('저장된 사진이 없습니다.'); return; }
   if(!$('schName').value.trim()){ alert('학교명을 입력해 주세요.'); $('schName').focus(); return; }
   const entries = buildEntries();
@@ -839,7 +910,8 @@ async function exportZip(share){
       }
       HwangiBridge.finish();
       $('prog').style.display='none';
-      toast('다운로드 폴더에 저장: '+fname);
+      if(share && HwangiBridge.share){ try{ HwangiBridge.share(); }catch(e){} toast('공유할 앱을 선택하세요'); }
+      else toast('다운로드 폴더에 저장: '+fname);
       return;
     }
     if(share && navigator.canShare){
