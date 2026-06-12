@@ -108,6 +108,7 @@ public class MainActivity extends Activity {
 
     class Bridge {
         private OutputStream os;
+        private Uri lastUri;
         @JavascriptInterface public void start(String name){
             try{
                 ContentResolver cr = getContentResolver();
@@ -116,8 +117,30 @@ public class MainActivity extends Activity {
                 v.put(MediaStore.Downloads.MIME_TYPE, "application/zip");
                 v.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
                 Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                lastUri = uri;
                 os = cr.openOutputStream(uri);
             }catch(Exception e){ os = null; }
+        }
+        @JavascriptInterface public void share(){
+            runOnUiThread(new Runnable(){ public void run(){
+                try{
+                    if (lastUri == null) return;
+                    android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_SEND);
+                    i.setType("application/zip");
+                    i.putExtra(android.content.Intent.EXTRA_STREAM, lastUri);
+                    i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(android.content.Intent.createChooser(i, "ZIP 공유"));
+                }catch(Exception e){}
+            }});
+        }
+        @JavascriptInterface public void openSettings(){
+            runOnUiThread(new Runnable(){ public void run(){
+                try{
+                    android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                    i.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                }catch(Exception e){}
+            }});
         }
         @JavascriptInterface public void append(String b64){
             try{ if(os != null) os.write(Base64.decode(b64, Base64.DEFAULT)); }catch(Exception e){}
