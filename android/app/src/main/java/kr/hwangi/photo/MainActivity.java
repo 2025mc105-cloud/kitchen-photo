@@ -142,6 +142,40 @@ public class MainActivity extends Activity {
                 }catch(Exception e){}
             }});
         }
+        private volatile boolean micRun = false;
+        @JavascriptInterface public void startMic(){
+            if (micRun) return;
+            if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED){ askPerms(); return; }
+            micRun = true;
+            new Thread(new Runnable(){ public void run(){
+                android.media.AudioRecord rec = null;
+                try{
+                    int sr = 16000;
+                    int minB = android.media.AudioRecord.getMinBufferSize(sr,
+                        android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT);
+                    if (minB < 3200) minB = 3200;
+                    rec = new android.media.AudioRecord(android.media.MediaRecorder.AudioSource.MIC,
+                        sr, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, minB);
+                    rec.startRecording();
+                    short[] data = new short[800];
+                    long lastFire = 0;
+                    while (micRun){
+                        int n = rec.read(data, 0, data.length);
+                        int peak = 0;
+                        for (int i = 0; i < n; i++){ int v = data[i]; if (v < 0) v = -v; if (v > peak) peak = v; }
+                        long now = System.currentTimeMillis();
+                        if (peak > 13000 && now - lastFire > 1500){
+                            lastFire = now;
+                            runOnUiThread(new Runnable(){ public void run(){
+                                web.evaluateJavascript("window.__sndTrigger&&window.__sndTrigger();", null);
+                            }});
+                        }
+                    }
+                }catch(Exception e){}
+                try{ if (rec != null){ rec.stop(); rec.release(); } }catch(Exception e){}
+            }}).start();
+        }
+        @JavascriptInterface public void stopMic(){ micRun = false; }
         @JavascriptInterface public void append(String b64){
             try{ if(os != null) os.write(Base64.decode(b64, Base64.DEFAULT)); }catch(Exception e){}
         }
