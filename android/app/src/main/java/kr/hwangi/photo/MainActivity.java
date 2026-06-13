@@ -23,7 +23,7 @@ import android.widget.Toast;
 import java.io.OutputStream;
 
 public class MainActivity extends Activity {
-    private static final String APP_URL = "https://2025mc105-cloud.github.io/kitchen-photo/";
+    private static final String APP_URL = "file:///android_asset/index.html";
     private WebView web;
 
     @Override protected void onCreate(Bundle b){
