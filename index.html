@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v9</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v10</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -329,14 +329,10 @@ async function openCameraDev(devId){
   const base = devId ? {deviceId:{exact:devId}} : {facingMode:{ideal:'environment'}};
   const vidC = { ...base, width:{ideal:4096}, height:{ideal:3072} };
   try{
-    stream = await navigator.mediaDevices.getUserMedia({ video: vidC, audio: true });   // 마이크 동시 확보(소리촬영용)
-  }catch(e0){
-    try{
-      stream = await navigator.mediaDevices.getUserMedia({ video: vidC, audio: false });
-    }catch(e){
-      if(devId){ toast('렌즈 전환 실패 — 기본 렌즈로 복귀'); openCameraDev(null); return; }
-      $('camInput').value=''; $('camInput').click(); return;
-    }
+    stream = await navigator.mediaDevices.getUserMedia({ video: vidC, audio: false });
+  }catch(e){
+    if(devId){ toast('렌즈 전환 실패 — 기본 렌즈로 복귀'); openCameraDev(null); return; }
+    $('camInput').value=''; $('camInput').click(); return;
   }
   camTrack = stream.getVideoTracks()[0];
   imgCap = (window.ImageCapture && camTrack) ? new ImageCapture(camTrack) : null;
@@ -488,21 +484,29 @@ async function toggleTorch(){
 
 /* ── 📢 소리 촬영: 박수·"찍어" 같은 큰 소리에 셔터 ── */
 let micOn=false, micStream=null, micCtx=null, micAnalyser=null, micRAF=null, lastSnapAt=0, micArmAt=0;
-let micOwn = false;
+let micOwn = false, micNative = false;
+window.__sndTrigger = function(){
+  if(!micOn) return;
+  if($('camView').style.display !== 'flex') return;
+  if(Date.now() > micArmAt && Date.now() - lastSnapAt > 1500) snap();
+};
 async function toggleMic(){
   if(micOn){ stopMic(); renderZoomBar(); toast('소리 촬영 OFF'); return; }
+  // APK: 네이티브(안드로이드 자체) 소리 감지 — WebView 마이크 제약과 무관하게 동작
+  if(window.HwangiBridge && HwangiBridge.startMic){
+    try{ HwangiBridge.startMic(); }catch(e){ toast('소리 감지 시작 실패'); return; }
+    micOn = true; micNative = true; micArmAt = Date.now() + 1000;
+    renderZoomBar();
+    toast('소리 촬영 ON — 박수 치거나 크게 외치면 찍힙니다');
+    return;
+  }
   micOwn = false;
-  const atks = (stream && stream.getAudioTracks) ? stream.getAudioTracks() : [];
-  if(atks.length && atks[0].readyState === 'live'){
-    micStream = new MediaStream([atks[0]]);          // 카메라와 함께 확보한 마이크 트랙 재사용
-  }else{
-    try{
-      micStream = await navigator.mediaDevices.getUserMedia({audio:true});
-      micOwn = true;
-    }catch(e){
-      toast('마이크 사용 불가(' + ((e && e.name) || '오류') + ') — 카메라를 닫았다 다시 열어주세요');
-      return;
-    }
+  try{
+    micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    micOwn = true;
+  }catch(e){
+    toast('마이크 사용 불가(' + ((e && e.name) || '오류') + ')');
+    return;
   }
   try{
     micCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -526,6 +530,10 @@ async function toggleMic(){
 }
 function stopMic(){
   micOn = false;
+  if(micNative){
+    try{ window.HwangiBridge && HwangiBridge.stopMic && HwangiBridge.stopMic(); }catch(e){}
+    micNative = false;
+  }
   if(micRAF){ cancelAnimationFrame(micRAF); micRAF=null; }
   try{ if(micOwn && micStream) micStream.getTracks().forEach(t=>t.stop()); }catch(e){}
   micStream=null; micOwn=false;
