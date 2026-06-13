@@ -5,6 +5,11 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/build-apk.yml'
+      - 'index.html'
+      - 'sw.js'
+      - 'manifest.json'
+      - 'icon-192.png'
+      - 'icon-512.png'
 permissions:
   contents: write
 jobs:
@@ -16,11 +21,17 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Add app icons
+      - name: Bundle web assets into APK
         run: |
+          mkdir -p android/app/src/main/assets
+          cp index.html android/app/src/main/assets/
+          cp manifest.json android/app/src/main/assets/
+          cp sw.js android/app/src/main/assets/
+          cp icon-192.png android/app/src/main/assets/
+          cp icon-512.png android/app/src/main/assets/
           mkdir -p android/app/src/main/res/mipmap-xhdpi android/app/src/main/res/mipmap-xxxhdpi
-          curl -fsSL https://2025mc105-cloud.github.io/kitchen-photo/icon-192.png -o android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          curl -fsSL https://2025mc105-cloud.github.io/kitchen-photo/icon-512.png -o android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+          cp icon-192.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+          cp icon-512.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
       - name: Gradle wrapper 8.7
         run: |
           mkdir -p "$RUNNER_TEMP/wr" && cd "$RUNNER_TEMP/wr"
