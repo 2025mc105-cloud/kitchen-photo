@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 급식실 환기 사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v8</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v9</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -316,7 +316,7 @@ let mainDevId=null, curDevId=null, onAltLens=false;
 let uwDevId=null; try{ uwDevId = localStorage.getItem('cam_uw_dev')||null; }catch(e){}
 /* FULL = 이 폰 화면과 똑같은 비율(화면 꽉 참) */
 const SCR_R = (()=>{ try{ const w=screen.width||16, h=screen.height||9; return Math.max(w,h)/Math.min(w,h); }catch(e){ return 2.1645; } })();
-const ASPECTS=[{id:'full',label:'FULL',r:SCR_R},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
+const ASPECTS=[{id:'full',label:'FULL',r:4000/1848,fw:4000,fh:1848},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
 let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v7'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 
@@ -327,13 +327,16 @@ async function openCamera(){ return openCameraDev(null); }
 async function openCameraDev(devId){
   if(!camSupported()){ $('camInput').value=''; $('camInput').click(); return; }
   const base = devId ? {deviceId:{exact:devId}} : {facingMode:{ideal:'environment'}};
+  const vidC = { ...base, width:{ideal:4096}, height:{ideal:3072} };
   try{
-    stream = await navigator.mediaDevices.getUserMedia({
-      video:{ ...base, width:{ideal:4096}, height:{ideal:3072} }, audio:false
-    });
-  }catch(e){
-    if(devId){ toast('렌즈 전환 실패 — 기본 렌즈로 복귀'); openCameraDev(null); return; }
-    $('camInput').value=''; $('camInput').click(); return;
+    stream = await navigator.mediaDevices.getUserMedia({ video: vidC, audio: true });   // 마이크 동시 확보(소리촬영용)
+  }catch(e0){
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: vidC, audio: false });
+    }catch(e){
+      if(devId){ toast('렌즈 전환 실패 — 기본 렌즈로 복귀'); openCameraDev(null); return; }
+      $('camInput').value=''; $('camInput').click(); return;
+    }
   }
   camTrack = stream.getVideoTracks()[0];
   imgCap = (window.ImageCapture && camTrack) ? new ImageCapture(camTrack) : null;
@@ -348,7 +351,8 @@ async function openCameraDev(devId){
     $('torchBtn').style.display = caps.torch ? 'block' : 'none';
     zoomCaps = caps.zoom ? {min:caps.zoom.min, max:caps.zoom.max} : null;
   }catch(e){ $('torchBtn').style.display='none'; zoomCaps=null; }
-  curZoom = 1;
+  curZoom = 1; digiZoom = 1;
+  $('camVideo').style.transform = '';
   if(zoomCaps && !onAltLens) setZoom(1, true);
   if(!backCams.length){
     try{
@@ -399,8 +403,7 @@ async function handle06(){
 }
 async function pressZoom(z){
   if(onAltLens){ await swapTo(mainDevId); }
-  if(zoomCaps) setZoom(z);
-  else toast('줌 미지원 렌즈입니다');
+  setZoom(z);
 }
 function updateCamHead(){
   $('camFolder').textContent = FSHORT[curFolder] || '';
@@ -431,8 +434,6 @@ function renderZoomBar(){
     const b = document.createElement('button');
     b.className = 'zbtn' + ((!onAltLens && Math.abs(curZoom-z)<0.05) ? ' on':'');
     b.textContent = z + '×';
-    const ok = !zoomCaps || (z >= zoomCaps.min-0.001 && z <= zoomCaps.max+0.001);
-    if(!ok) b.classList.add('dim');
     b.onclick = ()=>pressZoom(z);
     bar.appendChild(b);
   });
@@ -459,14 +460,25 @@ function renderZoomBar(){
   s.onclick = ()=>{ sndOn=!sndOn; try{ localStorage.setItem('cam_snd', sndOn?'1':'0'); }catch(e){} renderZoomBar(); };
   bar.appendChild(s);
 }
+let digiZoom = 1;
 async function setZoom(z, silent){
-  if(!camTrack || !zoomCaps) return;
-  const v = Math.min(Math.max(z, zoomCaps.min), zoomCaps.max);
-  try{
-    await camTrack.applyConstraints({advanced:[{zoom:v}]});
-    curZoom = z; renderZoomBar();
-    if(!silent) toast(z + '×');
-  }catch(e){ if(!silent) toast('줌 적용 실패'); }
+  if(!camTrack) return;
+  let applied = false;
+  if(zoomCaps){
+    const v = Math.min(Math.max(z, zoomCaps.min), zoomCaps.max);
+    try{ await camTrack.applyConstraints({advanced:[{zoom:v}]}); if(v >= z*0.95) applied = true; }catch(e){}
+  }
+  const vd = $('camVideo');
+  if(applied || z <= 1){
+    digiZoom = 1; vd.style.transform = '';
+  }else{
+    if(zoomCaps){ try{ camTrack.applyConstraints({advanced:[{zoom: Math.max(1, zoomCaps.min)}]}); }catch(e){} }
+    digiZoom = z;                                   // 디지털 줌: 프리뷰 확대 + 촬영 시 중앙 크롭
+    vd.style.transformOrigin = 'center center';
+    vd.style.transform = 'scale(' + z + ')';
+  }
+  curZoom = z; renderZoomBar();
+  if(!silent) toast(z + '×' + (digiZoom > 1 ? ' (디지털 줌)' : ''));
 }
 async function toggleTorch(){
   if(!camTrack) return;
@@ -476,16 +488,21 @@ async function toggleTorch(){
 
 /* ── 📢 소리 촬영: 박수·"찍어" 같은 큰 소리에 셔터 ── */
 let micOn=false, micStream=null, micCtx=null, micAnalyser=null, micRAF=null, lastSnapAt=0, micArmAt=0;
+let micOwn = false;
 async function toggleMic(){
   if(micOn){ stopMic(); renderZoomBar(); toast('소리 촬영 OFF'); return; }
-  try{
-    micStream = await navigator.mediaDevices.getUserMedia({audio:true});
-  }catch(e){
-    if(window.HwangiBridge && HwangiBridge.openSettings){
-      toast('설정에서 [권한 → 마이크]를 허용해 주세요');
-      try{ HwangiBridge.openSettings(); }catch(_){}
-    }else toast('마이크 권한이 필요합니다');
-    return;
+  micOwn = false;
+  const atks = (stream && stream.getAudioTracks) ? stream.getAudioTracks() : [];
+  if(atks.length && atks[0].readyState === 'live'){
+    micStream = new MediaStream([atks[0]]);          // 카메라와 함께 확보한 마이크 트랙 재사용
+  }else{
+    try{
+      micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+      micOwn = true;
+    }catch(e){
+      toast('마이크 사용 불가(' + ((e && e.name) || '오류') + ') — 카메라를 닫았다 다시 열어주세요');
+      return;
+    }
   }
   try{
     micCtx = new (window.AudioContext||window.webkitAudioContext)();
@@ -510,8 +527,8 @@ async function toggleMic(){
 function stopMic(){
   micOn = false;
   if(micRAF){ cancelAnimationFrame(micRAF); micRAF=null; }
-  try{ micStream && micStream.getTracks().forEach(t=>t.stop()); }catch(e){}
-  micStream=null;
+  try{ if(micOwn && micStream) micStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+  micStream=null; micOwn=false;
   try{ micCtx && micCtx.close(); }catch(e){}
   micCtx=null; micAnalyser=null;
 }
@@ -602,9 +619,15 @@ function initWorker(){
         const land = rw >= rh; let tw, th;
         if(land){ if(rw/rh >= d.ratio){ th=rh; tw=Math.round(rh*d.ratio); } else { tw=rw; th=Math.round(rw/d.ratio); } }
         else    { if(rh/rw >= d.ratio){ tw=rw; th=Math.round(rw*d.ratio); } else { th=rh; tw=Math.round(rh/d.ratio); } }
-        const sx=(rw-tw)>>1, sy=(rh-th)>>1;
-        const out = new OffscreenCanvas(tw, th);
-        out.getContext('2d').drawImage(srcC, sx, sy, tw, th, 0, 0, tw, th);
+        let sx=(rw-tw)>>1, sy=(rh-th)>>1, cw=tw, ch=th;
+        if(d.dz > 1){
+          const nw = Math.round(tw/d.dz), nh = Math.round(th/d.dz);
+          sx += (tw-nw)>>1; sy += (th-nh)>>1; cw = nw; ch = nh;
+        }
+        let ow = cw, oh = ch;
+        if(d.fw){ ow = land ? d.fw : d.fh; oh = land ? d.fh : d.fw; }
+        const out = new OffscreenCanvas(ow, oh);
+        out.getContext('2d').drawImage(srcC, sx, sy, cw, ch, 0, 0, ow, oh);
         if(d.bmp.close) d.bmp.close();
         const blob = await out.convertToBlob({type:'image/jpeg', quality:0.88});
         self.postMessage({id:d.id, blob:blob});
@@ -654,7 +677,8 @@ async function snap(){
       const id = 'p' + meta.seq;
       pendingShots[id] = meta;
       updateCamHead();
-      encWorker.postMessage({id, bmp, rot, ratio, W:bmp.width, H:bmp.height}, [bmp]);
+      const A = ASPECTS[aspectIdx];
+      encWorker.postMessage({id, bmp, rot, ratio, dz:(onAltLens?1:digiZoom), fw:(A.fw||0), fh:(A.fh||0), W:bmp.width, H:bmp.height}, [bmp]);
       return;
     }
   }
