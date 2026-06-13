@@ -6,8 +6,11 @@ android {
         applicationId 'kr.hwangi.photo'
         minSdk 29
         targetSdk 34
-        versionCode 6
-        versionName '6.0'
+        versionCode 7
+        versionName '7.0'
     }
     lint { abortOnError false }
+}
+dependencies {
+    implementation 'androidx.webkit:webkit:1.8.0'
 }
