@@ -7,7 +7,7 @@ android {
         minSdk 29
         targetSdk 34
         versionCode 8
-        versionName '8.0'
+        versionName '7.1'
     }
     lint { abortOnError false }
 }
