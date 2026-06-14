@@ -54,6 +54,21 @@ public class MainActivity extends Activity {
                     else { pendingReq = req; askPerms(); }
                 }});
             }
+            // 갤러리에서 가져오기: WebView <input type=file> → 안드로이드 파일 선택창
+            @Override public boolean onShowFileChooser(WebView webView,
+                    ValueCallback<Uri[]> cb, FileChooserParams params){
+                if (filePathCallback != null){ filePathCallback.onReceiveValue(null); }
+                filePathCallback = cb;
+                try{
+                    android.content.Intent intent = params.createIntent();
+                    intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivityForResult(android.content.Intent.createChooser(intent, "사진 선택"), 1001);
+                }catch(Exception e){
+                    filePathCallback = null;
+                    return false;
+                }
+                return true;
+            }
         });
         web.addJavascriptInterface(new Bridge(), "HwangiBridge");
         setContentView(web);
@@ -62,6 +77,7 @@ public class MainActivity extends Activity {
     }
 
     private PermissionRequest pendingReq;
+    private ValueCallback<Uri[]> filePathCallback;
 
     private boolean webPermsOk(PermissionRequest req){
         for (String r : req.getResources()){
@@ -87,6 +103,25 @@ public class MainActivity extends Activity {
             runOnUiThread(new Runnable(){ public void run(){
                 try{ if (webPermsOk(req)) req.grant(req.getResources()); else req.deny(); }catch(Exception e){}
             }});
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data){
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1001){
+            if (filePathCallback == null) return;
+            Uri[] results = null;
+            if (resultCode == Activity.RESULT_OK && data != null){
+                if (data.getClipData() != null){
+                    int n = data.getClipData().getItemCount();
+                    results = new Uri[n];
+                    for (int i = 0; i < n; i++) results[i] = data.getClipData().getItemAt(i).getUri();
+                } else if (data.getData() != null){
+                    results = new Uri[]{ data.getData() };
+                }
+            }
+            filePathCallback.onReceiveValue(results);
+            filePathCallback = null;
         }
     }
 
