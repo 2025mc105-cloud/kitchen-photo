@@ -1,6 +1,6 @@
 {
-  "name": "급식실 환기 사진",
-  "short_name": "환기사진",
+  "name": "후드사진",
+  "short_name": "후드사진",
   "description": "학교 급식실 환기설비 점검 사진 분류 촬영 앱",
   "start_url": "./",
   "scope": "./",
