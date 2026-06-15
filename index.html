@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v11</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v12</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -300,13 +300,43 @@ function renderFolder(){
   list.forEach((p,i)=>{
     if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
     const d = document.createElement('div'); d.className='th';
-    const tag = curFolder.startsWith('h') ? String(i).padStart(2,'0') : (i+1)+'번';
+    const tag = curFolder.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번';
     d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
+    d.querySelector('img').onclick = ()=>openViewer(p.id, tag);
     const del = document.createElement('button'); del.className='del'; del.textContent='✕';
     del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
     d.appendChild(del);
     tdiv.appendChild(d);
   });
+}
+
+
+/* ───────── 사진 크게 보기 (썸네일 클릭 → 원본 전체화면) ───────── */
+function openViewer(id, tag){
+  const p = photos.find(x=>x.id===id);
+  if(!p) return;
+  if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
+  let ov = document.getElementById('photoViewer');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'photoViewer';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:130;display:flex;flex-direction:column;';
+    ov.innerHTML =
+      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0b0f14;">'+
+      '<button id="pvClose" style="background:#374151;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">✕ 닫기</button>'+
+      '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:18px;font-weight:bold;"></div>'+
+      '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">🗑 삭제</button>'+
+      '</div>'+
+      '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">'+
+      '<img id="pvImg" style="max-width:100%;max-height:100%;object-fit:contain;">'+
+      '</div>';
+    document.body.appendChild(ov);
+  }
+  ov.querySelector('#pvImg').src = thumbURL[p.id];
+  ov.querySelector('#pvTag').textContent = tag;
+  ov.querySelector('#pvClose').onclick = ()=>{ ov.style.display='none'; };
+  ov.querySelector('#pvDel').onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')){ removePhoto(p.id); ov.style.display='none'; } };
+  ov.style.display = 'flex';
 }
 
 /* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
@@ -915,7 +945,7 @@ function buildEntries(){
   folderPhotos('doc').forEach(p=>entries.push({path: uniq(root+'/'+tsName(p.ts)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
   folderPhotos('base').forEach(p=>entries.push({path: uniq(root+'/기본 사진/'+tsName(p.ts)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
   for(let i=1;i<=15;i++){
-    folderPhotos('h'+i).forEach((p,idx)=>entries.push({path: uniq(root+'/후드'+i+' 사진/'+pad(idx,2)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
+    folderPhotos('h'+i).forEach((p,idx)=>entries.push({path: uniq(root+'/후드'+i+' 사진/'+pad(idx+1,2)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
   }
   return entries;
 }
