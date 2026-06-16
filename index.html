@@ -108,7 +108,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v12</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v13</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -121,6 +121,7 @@
       <div style="flex:1"><label>월</label><input type="number" id="schM"></div>
       <div style="flex:1"><label>일</label><input type="number" id="schD"></div>
       <div style="flex:1"><label>시</label><input type="number" id="schH"></div>
+      <div style="flex:1"><label>분</label><input type="number" id="schMin"></div>
     </div>
     <div class="foldername" id="folderPreview"></div>
   </div>
@@ -245,18 +246,19 @@ function loadMeta(){
   $('schM').value = m.m ?? (now.getMonth()+1);
   $('schD').value = m.d ?? now.getDate();
   $('schH').value = m.h ?? now.getHours();
+  $('schMin').value = m.min ?? now.getMinutes();
 }
 function saveMeta(){
-  const m = {num:$('schNum').value, name:$('schName').value, m:$('schM').value, d:$('schD').value, h:$('schH').value};
+  const m = {num:$('schNum').value, name:$('schName').value, m:$('schM').value, d:$('schD').value, h:$('schH').value, min:$('schMin').value};
   try{ localStorage.setItem('school_meta', JSON.stringify(m)); }catch(e){}
   $('folderPreview').textContent = '폴더명: ' + schoolFolderName();
 }
 function schoolFolderName(){
   const num = $('schNum').value.trim();
   const name = $('schName').value.trim() || '학교명미입력';
-  return (num? num+'_':'') + name + '(' + ($('schM').value||'?') + '월' + ($('schD').value||'?') + '일 ' + ($('schH').value||'?') + '시)';
+  return (num? num+'_':'') + name + '(' + ($('schM').value||'?') + '월' + ($('schD').value||'?') + '일 ' + ($('schH').value||'?') + '시' + ($('schMin').value||'?') + '분)';
 }
-['schNum','schName','schM','schD','schH'].forEach(id=>$(id).addEventListener('input', saveMeta));
+['schNum','schName','schM','schD','schH','schMin'].forEach(id=>$(id).addEventListener('input', saveMeta));
 
 /* ───────── 홈 화면 ───────── */
 function renderHome(){
@@ -311,31 +313,70 @@ function renderFolder(){
 }
 
 
-/* ───────── 사진 크게 보기 (썸네일 클릭 → 원본 전체화면) ───────── */
-function openViewer(id, tag){
-  const p = photos.find(x=>x.id===id);
-  if(!p) return;
-  if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
+/* ───────── 사진 크게 보기 (썸네일 클릭 → 원본, 좌우 스와이프 이전/다음) ───────── */
+function pvTagFor(fid, i){ return fid.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번'; }
+let pvFid = null, pvIdx = 0;
+function openViewer(id){
+  const list = folderPhotos(curFolder);
+  const idx = list.findIndex(x=>x.id===id);
+  if(idx < 0) return;
+  pvFid = curFolder; pvIdx = idx;
+  pvBuild();
+  pvShow();
+}
+function pvBuild(){
   let ov = document.getElementById('photoViewer');
-  if(!ov){
-    ov = document.createElement('div');
-    ov.id = 'photoViewer';
-    ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:130;display:flex;flex-direction:column;';
-    ov.innerHTML =
-      '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0b0f14;">'+
-      '<button id="pvClose" style="background:#374151;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">✕ 닫기</button>'+
-      '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:18px;font-weight:bold;"></div>'+
-      '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">🗑 삭제</button>'+
-      '</div>'+
-      '<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">'+
-      '<img id="pvImg" style="max-width:100%;max-height:100%;object-fit:contain;">'+
-      '</div>';
-    document.body.appendChild(ov);
-  }
-  ov.querySelector('#pvImg').src = thumbURL[p.id];
-  ov.querySelector('#pvTag').textContent = tag;
+  if(ov) return ov;
+  ov = document.createElement('div');
+  ov.id = 'photoViewer';
+  ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:130;display:flex;flex-direction:column;';
+  ov.innerHTML =
+    '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0b0f14;">'+
+    '<button id="pvClose" style="background:#374151;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">✕ 닫기</button>'+
+    '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:18px;font-weight:bold;"></div>'+
+    '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">🗑 삭제</button>'+
+    '</div>'+
+    '<div id="pvStage" style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">'+
+    '<button id="pvPrev" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:#000a;border:1px solid #fff5;color:#fff;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:1;">‹</button>'+
+    '<img id="pvImg" style="max-width:100%;max-height:100%;object-fit:contain;">'+
+    '<button id="pvNext" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#000a;border:1px solid #fff5;color:#fff;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:1;">›</button>'+
+    '</div>';
+  document.body.appendChild(ov);
   ov.querySelector('#pvClose').onclick = ()=>{ ov.style.display='none'; };
-  ov.querySelector('#pvDel').onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')){ removePhoto(p.id); ov.style.display='none'; } };
+  ov.querySelector('#pvPrev').onclick = ()=>pvNav(-1);
+  ov.querySelector('#pvNext').onclick = ()=>pvNav(1);
+  ov.querySelector('#pvDel').onclick = ()=>{
+    const list = folderPhotos(pvFid); const p = list[pvIdx];
+    if(!p) return;
+    if(confirm(pvTagFor(pvFid, pvIdx)+' 사진을 삭제할까요?')){ removePhoto(p.id); pvShow(); }
+  };
+  const stage = ov.querySelector('#pvStage');
+  let sx = 0, sy = 0;
+  stage.addEventListener('touchstart', e=>{ const t=e.changedTouches[0]; sx=t.clientX; sy=t.clientY; }, {passive:true});
+  stage.addEventListener('touchend', e=>{
+    const t=e.changedTouches[0]; const dx=t.clientX-sx, dy=t.clientY-sy;
+    if(Math.abs(dx)>40 && Math.abs(dx)>Math.abs(dy)) pvNav(dx<0 ? 1 : -1);
+  }, {passive:true});
+  return ov;
+}
+function pvNav(d){
+  const list = folderPhotos(pvFid);
+  if(!list.length) return;
+  pvIdx = Math.min(Math.max(pvIdx + d, 0), list.length - 1);
+  pvShow();
+}
+function pvShow(){
+  const ov = document.getElementById('photoViewer'); if(!ov) return;
+  const list = folderPhotos(pvFid);
+  if(!list.length){ ov.style.display='none'; if(curFolder) renderFolder(); return; }
+  if(pvIdx >= list.length) pvIdx = list.length - 1;
+  if(pvIdx < 0) pvIdx = 0;
+  const p = list[pvIdx];
+  if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
+  ov.querySelector('#pvImg').src = thumbURL[p.id];
+  ov.querySelector('#pvTag').textContent = pvTagFor(pvFid, pvIdx) + '   (' + (pvIdx+1) + ' / ' + list.length + ')';
+  ov.querySelector('#pvPrev').style.visibility = pvIdx>0 ? 'visible' : 'hidden';
+  ov.querySelector('#pvNext').style.visibility = pvIdx<list.length-1 ? 'visible' : 'hidden';
   ov.style.display = 'flex';
 }
 
@@ -942,7 +983,8 @@ function buildEntries(){
     do{ p = path.slice(0,dot)+'_'+(i++)+path.slice(dot); }while(used.has(p));
     used.add(p); return p;
   }
-  folderPhotos('doc').forEach(p=>entries.push({path: uniq(root+'/'+tsName(p.ts)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
+  const docName = ($('schName').value.trim()||'학교명미입력').replace(/[\\/:*?"<>|]/g,'').trim() || '학교명미입력';
+  folderPhotos('doc').forEach(p=>entries.push({path: uniq(root+'/'+docName+extOf(p.blob)), blob:p.blob, ts:p.ts}));
   folderPhotos('base').forEach(p=>entries.push({path: uniq(root+'/기본 사진/'+tsName(p.ts)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
   for(let i=1;i<=15;i++){
     folderPhotos('h'+i).forEach((p,idx)=>entries.push({path: uniq(root+'/후드'+i+' 사진/'+pad(idx+1,2)+extOf(p.blob)), blob:p.blob, ts:p.ts}));
