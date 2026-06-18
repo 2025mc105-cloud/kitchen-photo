@@ -100,6 +100,7 @@ public class MainActivity extends Activity {
     private PermissionRequest pendingReq;
     private ValueCallback<Uri[]> filePathCallback;
     private Uri captureUri;
+    private boolean camLooping = false;
 
     private boolean webPermsOk(PermissionRequest req){
         for (String r : req.getResources()){
@@ -131,6 +132,17 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data){
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1003){
+            if (resultCode == Activity.RESULT_OK && captureUri != null){
+                Uri u = captureUri; captureUri = null;
+                deliverPhoto(u);
+                if (camLooping){ launchCam(); }
+            } else {
+                camLooping = false;
+                if (captureUri != null){ try{ getContentResolver().delete(captureUri, null, null); }catch(Exception e){} captureUri = null; }
+            }
+            return;
+        }
         if (requestCode == 1002){
             if (filePathCallback == null) return;
             Uri[] results = null;
@@ -161,6 +173,39 @@ public class MainActivity extends Activity {
         }
     }
 
+    private void launchCam(){
+        try{
+            ContentValues cv = new ContentValues();
+            cv.put(MediaStore.Images.Media.DISPLAY_NAME, "cap_" + System.currentTimeMillis() + ".jpg");
+            cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+            captureUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+            android.content.Intent cam = new android.content.Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+            cam.putExtra(MediaStore.EXTRA_OUTPUT, captureUri);
+            cam.addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            if (captureUri != null && cam.resolveActivity(getPackageManager()) != null){
+                startActivityForResult(cam, 1003);
+            } else { camLooping = false; }
+        }catch(Exception e){ camLooping = false; captureUri = null; }
+    }
+    private void deliverPhoto(Uri u){
+        try{
+            java.io.InputStream is = getContentResolver().openInputStream(u);
+            java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[65536]; int r;
+            while((r = is.read(buf)) > 0) bos.write(buf, 0, r);
+            is.close();
+            byte[] data = bos.toByteArray();
+            try{ getContentResolver().delete(u, null, null); }catch(Exception e){}
+            final String b64 = Base64.encodeToString(data, Base64.NO_WRAP);
+            final int CH = 1000000;
+            web.evaluateJavascript("window.__camStart&&window.__camStart();", null);
+            for(int p = 0; p < b64.length(); p += CH){
+                String part = b64.substring(p, Math.min(p + CH, b64.length()));
+                web.evaluateJavascript("window.__camChunk&&window.__camChunk('" + part + "');", null);
+            }
+            web.evaluateJavascript("window.__camDone&&window.__camDone();", null);
+        }catch(Exception e){}
+    }
     private boolean isShutterKey(int code){
         return code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN
             || code == KeyEvent.KEYCODE_CAMERA || code == KeyEvent.KEYCODE_HEADSETHOOK
@@ -224,6 +269,9 @@ public class MainActivity extends Activity {
                     startActivity(i);
                 }catch(Exception e){}
             }});
+        }
+        @JavascriptInterface public void phoneCamLoop(){
+            runOnUiThread(new Runnable(){ public void run(){ camLooping = true; launchCam(); } });
         }
         private volatile boolean micRun = false;
         @JavascriptInterface public void startMic(){
