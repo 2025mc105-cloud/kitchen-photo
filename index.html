@@ -109,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v15</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v16</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -151,8 +151,9 @@
   <button class="gal" onclick="openGallery()">🖼 갤러리에서 가져오기 (여러 장 선택 가능)</button>
   <div class="thumbs" id="thumbs"></div>
   <div class="bottom">
-    <button class="btn gray" onclick="goHome()">폴더 선택으로</button>
-    <button class="btn blue" onclick="openCamera()">📷 촬영 (연속)</button>
+    <button class="btn gray" style="flex:0 0 22%" onclick="goHome()">← 폴더</button>
+    <button class="btn warn" style="flex:0 0 36%" onclick="phoneCam()">📷 폰카메라</button>
+    <button class="btn blue" onclick="openCamera()">📷 연속촬영</button>
   </div>
 </div>
 
@@ -171,7 +172,6 @@
     <img class="lastth" id="lastTh" alt="">
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
     <div class="camside">
-      <button class="cbtn" id="hqBtn" onclick="toggleHQ()" style="font-size:13px">고속</button>
       <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px">✋안정화</button>
     </div>
   </div>
@@ -247,10 +247,10 @@ function loadMeta(){
   const now = new Date();
   $('schNum').value  = m.num  ?? '';
   $('schName').value = m.name ?? '';
-  $('schM').value = m.m ?? (now.getMonth()+1);
-  $('schD').value = m.d ?? now.getDate();
-  $('schH').value = m.h ?? now.getHours();
-  $('schMin').value = m.min ?? now.getMinutes();
+  $('schM').value = now.getMonth()+1;
+  $('schD').value = now.getDate();
+  $('schH').value = now.getHours();
+  $('schMin').value = now.getMinutes();
 }
 function saveMeta(){
   const m = {num:$('schNum').value, name:$('schName').value, m:$('schM').value, d:$('schD').value, h:$('schH').value, min:$('schMin').value};
@@ -343,7 +343,7 @@ function renderFolder(){
     if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
     const d = document.createElement('div'); d.className='th';
     const tag = curFolder.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번';
-    d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>' + (p.blurry ? '<span class="blur">흔들림?</span>' : '');
+    d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
     d.querySelector('img').onclick = ()=>openViewer(p.id, tag);
     const del = document.createElement('button'); del.className='del'; del.textContent='✕';
     del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
@@ -372,9 +372,11 @@ function pvBuild(){
   ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:130;display:flex;flex-direction:column;';
   ov.innerHTML =
     '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0b0f14;">'+
-    '<button id="pvClose" style="background:#374151;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">✕ 닫기</button>'+
-    '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:18px;font-weight:bold;"></div>'+
-    '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:14px 18px;font-size:18px;font-weight:bold;">🗑 삭제</button>'+
+    '<button id="pvClose" style="background:#374151;border:none;color:#fff;border-radius:10px;padding:12px 12px;font-size:16px;font-weight:bold;">✕</button>'+
+    '<button id="pvFPrev" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:12px 10px;font-size:15px;">◀폴더</button>'+
+    '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:16px;font-weight:bold;"></div>'+
+    '<button id="pvFNext" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:12px 10px;font-size:15px;">폴더▶</button>'+
+    '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:12px 12px;font-size:16px;font-weight:bold;">🗑</button>'+
     '</div>'+
     '<div id="pvStage" style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">'+
     '<button id="pvPrev" style="position:absolute;left:6px;top:50%;transform:translateY(-50%);background:#000a;border:1px solid #fff5;color:#fff;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:1;">‹</button>'+
@@ -383,6 +385,8 @@ function pvBuild(){
     '</div>';
   document.body.appendChild(ov);
   ov.querySelector('#pvClose').onclick = ()=>{ ov.style.display='none'; };
+  ov.querySelector('#pvFPrev').onclick = ()=>pvFolderMove(-1);
+  ov.querySelector('#pvFNext').onclick = ()=>pvFolderMove(1);
   ov.querySelector('#pvPrev').onclick = ()=>pvNav(-1);
   ov.querySelector('#pvNext').onclick = ()=>pvNav(1);
   ov.querySelector('#pvDel').onclick = ()=>{
@@ -399,6 +403,15 @@ function pvBuild(){
   }, {passive:true});
   return ov;
 }
+function pvFolderMove(dir){
+  if(!FIDS || !FIDS.length) return;
+  let i = FIDS.indexOf(pvFid); if(i<0) i=0;
+  for(let s=0;s<FIDS.length;s++){
+    i=(i+dir+FIDS.length)%FIDS.length;
+    if(folderPhotos(FIDS[i]).length){ pvFid=FIDS[i]; curFolder=FIDS[i]; pvIdx=0; pvShow(); toast(FLABEL[FIDS[i]]); return; }
+  }
+  toast('다른 폴더에 사진이 없습니다');
+}
 function pvNav(d){
   const list = folderPhotos(pvFid);
   if(!list.length) return;
@@ -413,15 +426,22 @@ function pvShow(){
   if(pvIdx < 0) pvIdx = 0;
   const p = list[pvIdx];
   if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
-  ov.querySelector('#pvImg').src = thumbURL[p.id];
-  ov.querySelector('#pvTag').textContent = pvTagFor(pvFid, pvIdx) + '   (' + (pvIdx+1) + ' / ' + list.length + ')' + (p.blurry ? '  ⚠흔들림' : '');
+  const _img = ov.querySelector('#pvImg');
+  _img.onload = ()=>{
+    const land = _img.naturalWidth > _img.naturalHeight;
+    const portrait = window.innerHeight >= window.innerWidth;
+    if(land && portrait){ _img.style.maxWidth='100vh'; _img.style.maxHeight='100vw'; _img.style.transform='rotate(90deg)'; }
+    else { _img.style.maxWidth='100%'; _img.style.maxHeight='100%'; _img.style.transform='none'; }
+  };
+  _img.src = thumbURL[p.id];
+  ov.querySelector('#pvTag').textContent = (FSHORT[pvFid]||'') + ' ' + pvTagFor(pvFid, pvIdx) + ' (' + (pvIdx+1) + '/' + list.length + ')';
   ov.querySelector('#pvPrev').style.visibility = pvIdx>0 ? 'visible' : 'hidden';
   ov.querySelector('#pvNext').style.visibility = pvIdx<list.length-1 ? 'visible' : 'hidden';
   ov.style.display = 'flex';
 }
 
 /* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
-let stream=null, camTrack=null, imgCap=null, hiQ=true, torchOn=false, wakeLock=null;
+let stream=null, camTrack=null, imgCap=null, hiQ=false, torchOn=false, wakeLock=null;
 let zoomCaps=null, curZoom=1, backCams=[], sndOn=true;
 let mainDevId=null, curDevId=null, onAltLens=false;
 let uwDevId=null; try{ uwDevId = localStorage.getItem('cam_uw_dev')||null; }catch(e){}
@@ -430,7 +450,6 @@ const SCR_R = (()=>{ try{ const w=screen.width||16, h=screen.height||9; return M
 const ASPECTS=[{id:'full',label:'FULL',r:4000/1848,fw:4000,fh:1848},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
 let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v7'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
-try{ hiQ = localStorage.getItem('cam_hiq')!=='0'; }catch(e){}
 let stabOn = true; try{ stabOn = localStorage.getItem('cam_stab')!=='0'; }catch(e){}
 let torchAvail = false;
 const SHARP_THRESH = 30, DARK_THRESH = 70;
@@ -472,7 +491,6 @@ async function openCameraDev(devId){
       backCams = ds.filter(d=>d.kind==='videoinput' && !/front|user|전면/i.test(d.label||''));
     }catch(e){ backCams=[]; }
   }
-  $('hqBtn').textContent = hiQ ? '고화질' : '고속';
   if($('stabBtn')) $('stabBtn').textContent = stabOn ? '✋안정화ON' : '✋안정화OFF';
   if(!window.__torchHinted && torchAvail){ window.__torchHinted=true; setTimeout(()=>toast('💡 어두운 곳은 🔦(우상단)을 켜면 흔들림이 줄어요'), 800); }
   renderZoomBar();
@@ -775,26 +793,22 @@ function initWorker(){
         const octx = out.getContext('2d');
         octx.drawImage(srcC, sx, sy, cw, ch, 0, 0, ow, oh);
         if(d.bmp.close) d.bmp.close();
-        var q; try{ q = analyzeSharp(octx, ow, oh); }catch(_e){ q = {sharp:9999, luma:128}; }
         const blob = await out.convertToBlob({type:'image/jpeg', quality:0.88});
-        self.postMessage({id:d.id, blob:blob, sharp:q.sharp, luma:q.luma});
+        self.postMessage({id:d.id, blob:blob});
       }catch(err){ self.postMessage({id:d.id, blob:null}); }
     };`;
     encWorker = new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
-    encWorker.onmessage = ev => finishShot(ev.data.id, ev.data.blob, ev.data.sharp, ev.data.luma);
+    encWorker.onmessage = ev => finishShot(ev.data.id, ev.data.blob);
     encOK = true;
   }catch(e){ encWorker = false; encOK = false; }
 }
-function finishShot(id, blob, sharp, luma){
+function finishShot(id, blob){
   const meta = pendingShots[id]; delete pendingShots[id];
   if(!meta){ return; }
   if(!blob){ toast('1장 저장 실패'); updateCamHead(); return; }
-  const blurry = (typeof sharp==='number' && sharp < SHARP_THRESH);
-  const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob, blurry:blurry};
+  const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob};
   photos.push(rec); idbPut(rec);
   if($('camView').style.display==='flex' && curFolder===meta.fid) $('lastTh').src = URL.createObjectURL(blob);
-  if(blurry){ toast('⚠ 흔들림 의심 — 다시 촬영하세요'); try{ navigator.vibrate && navigator.vibrate([0,70,50,70]); }catch(e){} }
-  else if(typeof luma==='number' && luma < DARK_THRESH && !torchOn && torchAvail){ toast('어둡습니다 — 🔦 손전등을 켜면 더 선명합니다'); }
   updateCamHead();
   if($('folderView').style.display!=='none' && $('camView').style.display!=='flex' && curFolder===meta.fid) renderFolder();
 }
@@ -923,6 +937,7 @@ function shutterSound(){
 /* ── APK(네이티브 앱) 연동 훅: 볼륨키 셔터 / 뒤로가기 ── */
 window.__btShutter = function(){ if($('camView').style.display==='flex') snap(); };
 window.__btBack = function(){
+  const pv=document.getElementById('photoViewer'); if(pv && pv.style.display!=='none'){ pv.style.display='none'; return 'handled'; }
   if($('camView').style.display==='flex'){ closeCam(); return 'handled'; }
   if($('folderView').style.display!=='none'){ goHome(); return 'handled'; }
   return 'exit';
@@ -975,9 +990,10 @@ $('camInput').addEventListener('change', e=>{
   if(!f || !curFolder) return;
   addPhoto(curFolder, f, Date.now());
   renderFolder();
-  $('ovInfo').textContent = FLABEL[curFolder] + ' · 현재 ' + folderPhotos(curFolder).length + '장';
-  $('overlay').style.display='flex';
+  toast('📷 폰카메라 사진 저장됨 · ' + folderPhotos(curFolder).length + '장');
 });
+function phoneCam(){ if(!curFolder){ toast('폴더를 먼저 선택하세요'); return; } $('camInput').value=''; $('camInput').click(); }
+$('lastTh').onclick = ()=>{ const L=folderPhotos(curFolder); if(L.length) openViewer(L[L.length-1].id); };
 $('galInput').addEventListener('change', e=>{
   const fs = Array.from(e.target.files||[]);
   if(!fs.length || !curFolder) return;
