@@ -61,6 +61,7 @@
   .th img{width:100%; height:100%; object-fit:cover;}
   .th .no{position:absolute; left:4px; top:4px; background:#000a; padding:2px 7px; border-radius:6px; font-size:13px; font-weight:bold;}
   .th .del{position:absolute; right:4px; top:4px; background:var(--del); border:none; color:#fff; width:30px; height:30px; border-radius:8px; font-size:15px;}
+  .th .blur{position:absolute; left:4px; bottom:4px; background:var(--del); color:#fff; padding:2px 6px; border-radius:6px; font-size:12px; font-weight:bold;}
   /* ───── 내장 카메라 (전체화면 프리뷰 + 반투명 컨트롤) ───── */
   .camview{position:fixed; inset:0; background:#000; display:none; flex-direction:column; z-index:80;}
   .camtop{
@@ -108,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v14</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v15</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -171,6 +172,7 @@
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
     <div class="camside">
       <button class="cbtn" id="hqBtn" onclick="toggleHQ()" style="font-size:13px">고속</button>
+      <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px">✋안정화</button>
     </div>
   </div>
 </div>
@@ -341,7 +343,7 @@ function renderFolder(){
     if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
     const d = document.createElement('div'); d.className='th';
     const tag = curFolder.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번';
-    d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
+    d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>' + (p.blurry ? '<span class="blur">흔들림?</span>' : '');
     d.querySelector('img').onclick = ()=>openViewer(p.id, tag);
     const del = document.createElement('button'); del.className='del'; del.textContent='✕';
     del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
@@ -412,14 +414,14 @@ function pvShow(){
   const p = list[pvIdx];
   if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
   ov.querySelector('#pvImg').src = thumbURL[p.id];
-  ov.querySelector('#pvTag').textContent = pvTagFor(pvFid, pvIdx) + '   (' + (pvIdx+1) + ' / ' + list.length + ')';
+  ov.querySelector('#pvTag').textContent = pvTagFor(pvFid, pvIdx) + '   (' + (pvIdx+1) + ' / ' + list.length + ')' + (p.blurry ? '  ⚠흔들림' : '');
   ov.querySelector('#pvPrev').style.visibility = pvIdx>0 ? 'visible' : 'hidden';
   ov.querySelector('#pvNext').style.visibility = pvIdx<list.length-1 ? 'visible' : 'hidden';
   ov.style.display = 'flex';
 }
 
 /* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
-let stream=null, camTrack=null, imgCap=null, hiQ=false, torchOn=false, wakeLock=null;
+let stream=null, camTrack=null, imgCap=null, hiQ=true, torchOn=false, wakeLock=null;
 let zoomCaps=null, curZoom=1, backCams=[], sndOn=true;
 let mainDevId=null, curDevId=null, onAltLens=false;
 let uwDevId=null; try{ uwDevId = localStorage.getItem('cam_uw_dev')||null; }catch(e){}
@@ -428,6 +430,10 @@ const SCR_R = (()=>{ try{ const w=screen.width||16, h=screen.height||9; return M
 const ASPECTS=[{id:'full',label:'FULL',r:4000/1848,fw:4000,fh:1848},{id:'wide',label:'16:9',r:16/9},{id:'std',label:'4:3',r:4/3}];
 let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v7'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
+try{ hiQ = localStorage.getItem('cam_hiq')!=='0'; }catch(e){}
+let stabOn = true; try{ stabOn = localStorage.getItem('cam_stab')!=='0'; }catch(e){}
+let torchAvail = false;
+const SHARP_THRESH = 30, DARK_THRESH = 70;
 
 function camSupported(){
   return window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
@@ -453,6 +459,7 @@ async function openCameraDev(devId){
   onAltLens = !!(mainDevId && curDevId && curDevId !== mainDevId);
   try{
     const caps = camTrack.getCapabilities ? camTrack.getCapabilities() : {};
+    torchAvail = !!caps.torch;
     $('torchBtn').style.display = caps.torch ? 'block' : 'none';
     zoomCaps = caps.zoom ? {min:caps.zoom.min, max:caps.zoom.max} : null;
   }catch(e){ $('torchBtn').style.display='none'; zoomCaps=null; }
@@ -465,6 +472,9 @@ async function openCameraDev(devId){
       backCams = ds.filter(d=>d.kind==='videoinput' && !/front|user|전면/i.test(d.label||''));
     }catch(e){ backCams=[]; }
   }
+  $('hqBtn').textContent = hiQ ? '고화질' : '고속';
+  if($('stabBtn')) $('stabBtn').textContent = stabOn ? '✋안정화ON' : '✋안정화OFF';
+  if(!window.__torchHinted && torchAvail){ window.__torchHinted=true; setTimeout(()=>toast('💡 어두운 곳은 🔦(우상단)을 켜면 흔들림이 줄어요'), 800); }
   renderZoomBar();
   updateCamHead();
   startMediaSession();
@@ -691,10 +701,17 @@ function srcToBlob(src, w, h, ratio){
 }
 /* ── 기기 실제 방향: 화면회전 + (회전잠금 대비) 중력센서 ── */
 let gAccX = 0, gAccY = 0;
+let motionLevel = 0, _lastA = null;
 window.addEventListener('devicemotion', e=>{
-  const a = e.accelerationIncludingGravity; if(!a) return;
-  gAccX = gAccX*0.7 + (a.x||0)*0.3;
-  gAccY = gAccY*0.7 + (a.y||0)*0.3;
+  const a = e.accelerationIncludingGravity;
+  if(a){
+    gAccX = gAccX*0.7 + (a.x||0)*0.3;
+    gAccY = gAccY*0.7 + (a.y||0)*0.3;
+    if(_lastA){ const dx=(a.x||0)-_lastA.x, dy=(a.y||0)-_lastA.y, dz=(a.z||0)-_lastA.z; const jerk=Math.sqrt(dx*dx+dy*dy+dz*dz); motionLevel = motionLevel*0.6 + jerk*0.4; }
+    _lastA = {x:a.x||0, y:a.y||0, z:a.z||0};
+  }
+  const rr = e.rotationRate;
+  if(rr){ const r=(Math.abs(rr.alpha||0)+Math.abs(rr.beta||0)+Math.abs(rr.gamma||0))/60; if(r>motionLevel) motionLevel = motionLevel*0.5 + r*0.5; }
 });
 function calcRot(w, h){
   if(w >= h) return 0;                                   // 프레임이 이미 가로
@@ -720,7 +737,18 @@ function initWorker(){
   if(encWorker !== null) return;
   try{
     if(typeof OffscreenCanvas === 'undefined' || !OffscreenCanvas.prototype.convertToBlob){ encWorker = false; return; }
-    const src = `self.onmessage = async e => {
+    const src = `
+    function analyzeSharp(ctx, W, H){
+      var cw = Math.min(1400, W), ch = Math.min(1400, H);
+      var x0 = (W-cw)>>1, y0 = (H-ch)>>1;
+      var dat = ctx.getImageData(x0, y0, cw, ch).data;
+      var n = cw*ch, g = new Float32Array(n), sum = 0, i, j;
+      for(i=0,j=0;i<n;i++,j+=4){ var y = 0.299*dat[j]+0.587*dat[j+1]+0.114*dat[j+2]; g[i]=y; sum+=y; }
+      var luma = sum/n, s=0, s2=0, cnt=0, xx, yy;
+      for(yy=1; yy<ch-1; yy++){ for(xx=1; xx<cw-1; xx++){ var k=yy*cw+xx; var lap=4*g[k]-g[k-1]-g[k+1]-g[k-cw]-g[k+cw]; s+=lap; s2+=lap*lap; cnt++; } }
+      var mean=s/cnt; return { sharp: s2/cnt - mean*mean, luma: luma };
+    }
+    self.onmessage = async e => {
       const d = e.data;
       try{
         let rw = d.W, rh = d.H, srcC = d.bmp;
@@ -744,28 +772,63 @@ function initWorker(){
         let ow = cw, oh = ch;
         if(d.fw){ ow = land ? d.fw : d.fh; oh = land ? d.fh : d.fw; }
         const out = new OffscreenCanvas(ow, oh);
-        out.getContext('2d').drawImage(srcC, sx, sy, cw, ch, 0, 0, ow, oh);
+        const octx = out.getContext('2d');
+        octx.drawImage(srcC, sx, sy, cw, ch, 0, 0, ow, oh);
         if(d.bmp.close) d.bmp.close();
+        var q; try{ q = analyzeSharp(octx, ow, oh); }catch(_e){ q = {sharp:9999, luma:128}; }
         const blob = await out.convertToBlob({type:'image/jpeg', quality:0.88});
-        self.postMessage({id:d.id, blob:blob});
+        self.postMessage({id:d.id, blob:blob, sharp:q.sharp, luma:q.luma});
       }catch(err){ self.postMessage({id:d.id, blob:null}); }
     };`;
     encWorker = new Worker(URL.createObjectURL(new Blob([src], {type:'text/javascript'})));
-    encWorker.onmessage = ev => finishShot(ev.data.id, ev.data.blob);
+    encWorker.onmessage = ev => finishShot(ev.data.id, ev.data.blob, ev.data.sharp, ev.data.luma);
     encOK = true;
   }catch(e){ encWorker = false; encOK = false; }
 }
-function finishShot(id, blob){
+function finishShot(id, blob, sharp, luma){
   const meta = pendingShots[id]; delete pendingShots[id];
   if(!meta){ return; }
   if(!blob){ toast('1장 저장 실패'); updateCamHead(); return; }
-  const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob};
+  const blurry = (typeof sharp==='number' && sharp < SHARP_THRESH);
+  const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob, blurry:blurry};
   photos.push(rec); idbPut(rec);
   if($('camView').style.display==='flex' && curFolder===meta.fid) $('lastTh').src = URL.createObjectURL(blob);
+  if(blurry){ toast('⚠ 흔들림 의심 — 다시 촬영하세요'); try{ navigator.vibrate && navigator.vibrate([0,70,50,70]); }catch(e){} }
+  else if(typeof luma==='number' && luma < DARK_THRESH && !torchOn && torchAvail){ toast('어둡습니다 — 🔦 손전등을 켜면 더 선명합니다'); }
   updateCamHead();
   if($('folderView').style.display!=='none' && $('camView').style.display!=='flex' && curFolder===meta.fid) renderFolder();
 }
-async function snap(){
+let arming = false;
+const STAB_THRESH = 0.9, STAB_MIN = 250, STAB_HOLD = 120, STAB_MAX = 1300;
+function setStab(on){
+  let el = document.getElementById('stabInd');
+  if(!el){ el = document.createElement('div'); el.id='stabInd'; el.textContent='✋ 안정화 대기…';
+    el.style.cssText='position:absolute;top:96px;left:50%;transform:translateX(-50%);background:#000a;color:#ffd24d;padding:8px 14px;border-radius:16px;font-size:15px;font-weight:bold;z-index:84;display:none;';
+    $('camView').appendChild(el); }
+  el.style.display = on ? 'block' : 'none';
+}
+function toggleStab(){
+  stabOn = !stabOn; try{ localStorage.setItem('cam_stab', stabOn?'1':'0'); }catch(e){}
+  $('stabBtn').textContent = stabOn ? '✋안정화ON' : '✋안정화OFF';
+  toast(stabOn ? '안정화 ON: 흔들림 멈추면 자동 촬영' : '안정화 OFF: 누르면 즉시 촬영');
+}
+function snap(){
+  if(!stream || $('camView').style.display!=='flex') return;
+  if(arming) return;
+  if(!stabOn){ doSnap(); return; }
+  arming = true; setStab(true);
+  const t0 = Date.now(); let steadySince = 0;
+  const tick = ()=>{
+    if(!stream || $('camView').style.display!=='flex'){ arming=false; setStab(false); return; }
+    const now = Date.now();
+    if(motionLevel < STAB_THRESH){ if(!steadySince) steadySince = now; } else steadySince = 0;
+    const steady = steadySince && (now - steadySince >= STAB_HOLD) && (now - t0 >= STAB_MIN);
+    if(steady || now - t0 >= STAB_MAX){ arming=false; setStab(false); doSnap(); }
+    else setTimeout(tick, 25);
+  };
+  setTimeout(tick, 25);
+}
+async function doSnap(){
   if(!stream || snapBusy) return;
   snapBusy = true; setTimeout(()=>snapBusy=false, 200);
   const v = $('camVideo');
@@ -824,8 +887,9 @@ try{
 }catch(e){}
 function toggleHQ(){
   hiQ = !hiQ;
+  try{ localStorage.setItem('cam_hiq', hiQ?'1':'0'); }catch(e){}
   $('hqBtn').textContent = hiQ ? '고화질' : '고속';
-  toast(hiQ ? '고화질 모드 (12M급, 셔터 약간 느림)' : '고속 모드');
+  toast(hiQ ? '고화질 모드 (선명함 — 권장)' : '⚠ 고속 모드: 빠르지만 흔들림에 약함');
 }
 
 /* ── 셔터음: 실제 카메라 "찰칵" 기계음 (노이즈 2연타), 최대 음량 ──
