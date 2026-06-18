@@ -60,6 +60,23 @@ public class MainActivity extends Activity {
                     ValueCallback<Uri[]> cb, FileChooserParams params){
                 if (filePathCallback != null){ filePathCallback.onReceiveValue(null); }
                 filePathCallback = cb;
+                boolean wantCamera = false;
+                try{ wantCamera = params.isCaptureEnabled(); }catch(Exception e){}
+                if (wantCamera && checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED){
+                    try{
+                        ContentValues cv = new ContentValues();
+                        cv.put(MediaStore.Images.Media.DISPLAY_NAME, "cap_" + System.currentTimeMillis() + ".jpg");
+                        cv.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                        captureUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+                        android.content.Intent cam = new android.content.Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                        cam.putExtra(MediaStore.EXTRA_OUTPUT, captureUri);
+                        cam.addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+                        if (captureUri != null && cam.resolveActivity(getPackageManager()) != null){
+                            startActivityForResult(cam, 1002);
+                            return true;
+                        }
+                    }catch(Exception e){ captureUri = null; }
+                }
                 try{
                     android.content.Intent intent = params.createIntent();
                     intent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -82,6 +99,7 @@ public class MainActivity extends Activity {
 
     private PermissionRequest pendingReq;
     private ValueCallback<Uri[]> filePathCallback;
+    private Uri captureUri;
 
     private boolean webPermsOk(PermissionRequest req){
         for (String r : req.getResources()){
@@ -113,6 +131,19 @@ public class MainActivity extends Activity {
 
     @Override protected void onActivityResult(int requestCode, int resultCode, android.content.Intent data){
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 1002){
+            if (filePathCallback == null) return;
+            Uri[] results = null;
+            if (resultCode == Activity.RESULT_OK && captureUri != null){
+                results = new Uri[]{ captureUri };
+            } else if (captureUri != null){
+                try{ getContentResolver().delete(captureUri, null, null); }catch(Exception e){}
+            }
+            filePathCallback.onReceiveValue(results);
+            filePathCallback = null;
+            captureUri = null;
+            return;
+        }
         if (requestCode == 1001){
             if (filePathCallback == null) return;
             Uri[] results = null;
