@@ -136,7 +136,7 @@ public class MainActivity extends Activity {
             if (resultCode == Activity.RESULT_OK && captureUri != null){
                 Uri u = captureUri; captureUri = null;
                 deliverPhoto(u);
-                if (camLooping){ launchCam(); }
+                if (camLooping){ web.postDelayed(new Runnable(){ public void run(){ if (camLooping) launchCam(); } }, 600); }
             } else {
                 camLooping = false;
                 if (captureUri != null){ try{ getContentResolver().delete(captureUri, null, null); }catch(Exception e){} captureUri = null; }
