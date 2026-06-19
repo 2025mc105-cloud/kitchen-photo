@@ -109,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v19</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v20</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -185,6 +185,7 @@
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
     <div class="camside">
       <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px">✋안정화</button>
+      <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px">👁2초</button>
     </div>
   </div>
 </div>
@@ -518,7 +519,7 @@ function pvBuild(){
     '<button id="pvNext" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:#000a;border:1px solid #fff5;color:#fff;border-radius:50%;width:56px;height:56px;font-size:30px;line-height:1;">›</button>'+
     '</div>';
   document.body.appendChild(ov);
-  ov.querySelector('#pvClose').onclick = ()=>{ ov.style.display='none'; };
+  ov.querySelector('#pvClose').onclick = ()=>{ ov.style.display='none'; pvSyncBack(); };
   ov.querySelector('#pvFPrev').onclick = ()=>pvFolderMove(-1);
   ov.querySelector('#pvFNext').onclick = ()=>pvFolderMove(1);
   ov.querySelector('#pvCrop').onclick = ()=>{ const list=folderPhotos(pvFid); const p=list[pvIdx]; if(p) openDocCrop(p.id); };
@@ -586,6 +587,36 @@ const ASPECTS=[{id:'full',label:'FULL',r:4000/1848,fw:4000,fh:1848},{id:'wide',l
 let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v7'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 let stabOn = true; try{ stabOn = localStorage.getItem('cam_stab')!=='0'; }catch(e){}
+let reviewOn = false; try{ reviewOn = localStorage.getItem('cam_review')==='1'; }catch(e){}
+let reviewing = false, reviewTimer = null;
+function toggleReview(){
+  reviewOn = !reviewOn; try{ localStorage.setItem('cam_review', reviewOn?'1':'0'); }catch(e){}
+  if($('revBtn')) $('revBtn').textContent = reviewOn ? '\u{1F441}2\uCD08ON' : '\u{1F441}2\uCD08';
+  toast(reviewOn ? '\uCD2C\uC601 \uD6C4 2\uCD08 \uBBF8\uB9AC\uBCF4\uAE30 ON' : '2\uCD08 \uBBF8\uB9AC\uBCF4\uAE30 OFF');
+}
+function showReview(rec){
+  let ov = document.getElementById('reviewOv');
+  if(!ov){
+    ov = document.createElement('div'); ov.id='reviewOv';
+    ov.style.cssText='position:fixed;inset:0;background:#000;z-index:100;display:none;flex-direction:column;';
+    ov.innerHTML='<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img id="rvImg" style="max-width:100%;max-height:100%;object-fit:contain;"></div>'
+      +'<div style="display:flex;gap:10px;padding:14px;"><button id="rvDel" style="flex:1;background:#ef4444;border:none;color:#fff;border-radius:12px;padding:18px;font-size:19px;font-weight:bold;">\uD83D\uDDD1 \uC0AD\uC81C</button>'
+      +'<button id="rvKeep" style="flex:1;background:#16a34a;border:none;color:#fff;border-radius:12px;padding:18px;font-size:19px;font-weight:bold;">\uACC4\uC18D \u25B6</button></div>';
+    document.body.appendChild(ov);
+  }
+  const img = ov.querySelector('#rvImg');
+  const url = URL.createObjectURL(rec.blob);
+  img.src = url; reviewing = true;
+  const close = ()=>{ if(reviewTimer){ clearTimeout(reviewTimer); reviewTimer=null; } ov.style.display='none'; try{ URL.revokeObjectURL(url); }catch(e){} reviewing=false; };
+  ov.querySelector('#rvDel').onclick = ()=>{ removePhoto(rec.id); updateCamHead(); toast('\uC0AD\uC81C\uB428'); close(); };
+  ov.querySelector('#rvKeep').onclick = ()=>{ close(); };
+  ov.style.display = 'flex';
+  reviewTimer = setTimeout(close, 2000);
+}
+function pvSyncBack(){
+  if($('camView').style.display==='flex'){ updateCamHead(); }
+  else if($('folderView').style.display!=='none' && curFolder){ openFolder(curFolder); }
+}
 let torchAvail = false;
 const SHARP_THRESH = 30, DARK_THRESH = 70;
 
@@ -627,6 +658,7 @@ async function openCameraDev(devId){
     }catch(e){ backCams=[]; }
   }
   if($('stabBtn')) $('stabBtn').textContent = stabOn ? '✋안정화ON' : '✋안정화OFF';
+  if($('revBtn')) $('revBtn').textContent = reviewOn ? '👁2초ON' : '👁2초';
   if(!window.__torchHinted && torchAvail){ window.__torchHinted=true; setTimeout(()=>toast('💡 어두운 곳은 🔦(우상단)을 켜면 흔들림이 줄어요'), 800); }
   renderZoomBar();
   updateCamHead();
@@ -941,6 +973,7 @@ function finishShot(id, blob){
   if($('camView').style.display==='flex' && curFolder===meta.fid) $('lastTh').src = URL.createObjectURL(blob);
   updateCamHead();
   if($('folderView').style.display!=='none' && $('camView').style.display!=='flex' && curFolder===meta.fid) renderFolder();
+  if(reviewOn && $('camView').style.display==='flex') showReview(rec);
 }
 let arming = false;
 const STAB_THRESH = 0.9, STAB_MIN = 250, STAB_HOLD = 120, STAB_MAX = 1300;
@@ -958,6 +991,7 @@ function toggleStab(){
 }
 function snap(){
   if(!stream || $('camView').style.display!=='flex') return;
+  if(reviewing) return;
   if(arming) return;
   if(!stabOn){ doSnap(); return; }
   arming = true; setStab(true);
@@ -1067,7 +1101,7 @@ function shutterSound(){
 /* ── APK(네이티브 앱) 연동 훅: 볼륨키 셔터 / 뒤로가기 ── */
 window.__btShutter = function(){ if($('camView').style.display==='flex') snap(); };
 window.__btBack = function(){
-  const pv=document.getElementById('photoViewer'); if(pv && pv.style.display!=='none'){ pv.style.display='none'; return 'handled'; }
+  const pv=document.getElementById('photoViewer'); if(pv && pv.style.display!=='none'){ pv.style.display='none'; pvSyncBack(); return 'handled'; }
   if($('camView').style.display==='flex'){ closeCam(); return 'handled'; }
   if($('folderView').style.display!=='none'){ goHome(); return 'handled'; }
   return 'exit';
