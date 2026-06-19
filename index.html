@@ -109,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v22</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v23</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -452,6 +452,19 @@ function openDocCrop(id){
   const p=(photos||[]).find(x=>x.id===id); if(!p) return;
   const img=new Image();
   img.onload=()=>{
+    const portrait = window.innerHeight >= window.innerWidth;
+    if(img.naturalWidth > img.naturalHeight && portrait){
+      const c=document.createElement('canvas'); c.width=img.naturalHeight; c.height=img.naturalWidth;
+      const cx=c.getContext('2d'); cx.translate(c.width/2,c.height/2); cx.rotate(Math.PI/2); cx.drawImage(img,-img.naturalWidth/2,-img.naturalHeight/2);
+      c.toBlob(b=>{ const r=new Image(); r.onload=()=>{ try{URL.revokeObjectURL(img.src);}catch(e){} buildDocCrop(id, r); }; r.onerror=()=>buildDocCrop(id, img); r.src=URL.createObjectURL(b); }, 'image/jpeg', 0.95);
+      return;
+    }
+    buildDocCrop(id, img);
+  };
+  img.onerror=()=>toast('이미지 열기 실패');
+  img.src=URL.createObjectURL(p.blob);
+}
+function buildDocCrop(id, img){
     const iw=img.naturalWidth, ih=img.naturalHeight;
     const ov=document.createElement('div'); ov.id='docCrop';
     ov.style.cssText='position:fixed;inset:0;background:#000;z-index:140;display:flex;flex-direction:column;';
@@ -509,9 +522,6 @@ function openDocCrop(id){
       if(pr && pr.then){ pr.then(b=>{ dcReplace(id,b); ov.remove(); URL.revokeObjectURL(img.src); }); }
       else { toast('변환 실패'); ov.remove(); URL.revokeObjectURL(img.src); }
     };
-  };
-  img.onerror=()=>toast('이미지 열기 실패');
-  img.src=URL.createObjectURL(p.blob);
 }
 
 function pvBuild(){
