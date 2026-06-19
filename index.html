@@ -109,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v18</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v19</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -149,6 +149,18 @@
   </div>
   <div class="hint" id="fHint"></div>
   <button class="gal" onclick="openGallery()">🖼 갤러리에서 가져오기 (여러 장 선택 가능)</button>
+  <div id="reorderBar" style="margin-bottom:10px;">
+    <button id="reorderToggle" onclick="toggleReorder()" style="width:100%;padding:12px;font-size:16px;font-weight:bold;border:none;border-radius:10px;background:#374151;color:#fff;">↕ 순서변경 (꺼짐)</button>
+    <div id="reorderBtns" style="display:none;margin-top:8px;">
+      <div style="display:flex;gap:6px;">
+        <button onclick="reorderSel('first')" style="flex:1;padding:14px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#2563eb;color:#fff;">⏮맨앞</button>
+        <button onclick="reorderSel('up')" style="flex:1;padding:14px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#3b82f6;color:#fff;">◀앞으로</button>
+        <button onclick="reorderSel('down')" style="flex:1;padding:14px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#3b82f6;color:#fff;">뒤로▶</button>
+        <button onclick="reorderSel('last')" style="flex:1;padding:14px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#2563eb;color:#fff;">맨뒤⏭</button>
+      </div>
+      <div style="font-size:13px;color:var(--warn);margin-top:6px;">옮길 사진을 누른 뒤(테두리 강조) 위 버튼을 누르세요.</div>
+    </div>
+  </div>
   <div class="thumbs" id="thumbs"></div>
   <div class="bottom">
     <button class="btn gray" style="flex:0 0 22%" onclick="goHome()">← 폴더</button>
@@ -338,16 +350,21 @@ function folderPhotos(fid){ return photos.filter(p=>p.fid===fid).sort((a,b)=>a.s
 function renderFolder(){
   const list = folderPhotos(curFolder);
   $('fCnt').textContent = list.length;
+  const _rb=$('reorderBtns'); if(_rb) _rb.style.display = reorderMode?'block':'none';
+  const _rt=$('reorderToggle'); if(_rt){ _rt.textContent = reorderMode?'↕ 순서변경 켜짐 (누르면 끄기)':'↕ 순서변경 (꺼짐)'; _rt.style.background = reorderMode?'#16a34a':'#374151'; }
   const tdiv = $('thumbs'); tdiv.innerHTML='';
   list.forEach((p,i)=>{
     if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
     const d = document.createElement('div'); d.className='th';
     const tag = curFolder.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번';
     d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
-    d.querySelector('img').onclick = ()=>openViewer(p.id, tag);
-    const del = document.createElement('button'); del.className='del'; del.textContent='✕';
-    del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
-    d.appendChild(del);
+    if(reorderMode && selId===p.id){ d.style.outline='4px solid var(--acc)'; d.style.outlineOffset='-2px'; }
+    d.querySelector('img').onclick = ()=>{ if(reorderMode){ selId=p.id; renderFolder(); } else { openViewer(p.id, tag); } };
+    if(!reorderMode){
+      const del = document.createElement('button'); del.className='del'; del.textContent='✕';
+      del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
+      d.appendChild(del);
+    }
     tdiv.appendChild(d);
   });
 }
@@ -364,6 +381,122 @@ function openViewer(id){
   pvBuild();
   pvShow();
 }
+
+/* ───────── 순서 변경 ───────── */
+let reorderMode = false, selId = null;
+function toggleReorder(){
+  reorderMode = !reorderMode; selId = null; renderFolder();
+}
+function reorderSel(where){
+  if(!selId){ toast('먼저 옮길 사진을 누르세요'); return; }
+  const list = folderPhotos(curFolder);
+  const i = list.findIndex(p=>p.id===selId); if(i<0) return;
+  let j = where==='first'?0 : where==='last'?list.length-1 : where==='up'?Math.max(0,i-1) : Math.min(list.length-1,i+1);
+  if(j===i){ toast('이미 끝입니다'); return; }
+  const pool = list.map(p=>p.seq).slice().sort((a,b)=>a-b);
+  const [item] = list.splice(i,1); list.splice(j,0,item);
+  list.forEach((p,k)=>{ p.seq = pool[k]; idbPut(p); });
+  renderFolder();
+}
+/* ───────── 문서 모서리 보정(수동 4점 → 반듯하게) ───────── */
+function homography(from, to){
+  const A=[], b=[];
+  for(let k=0;k<4;k++){ const x=from[k][0],y=from[k][1],u=to[k][0],v=to[k][1];
+    A.push([x,y,1,0,0,0,-x*u,-y*u]); b.push(u);
+    A.push([0,0,0,x,y,1,-x*v,-y*v]); b.push(v);
+  }
+  for(let i=0;i<8;i++){
+    let piv=i; for(let r=i+1;r<8;r++) if(Math.abs(A[r][i])>Math.abs(A[piv][i])) piv=r;
+    if(Math.abs(A[piv][i])<1e-9) return null;
+    [A[i],A[piv]]=[A[piv],A[i]]; [b[i],b[piv]]=[b[piv],b[i]];
+    for(let r=0;r<8;r++){ if(r===i) continue; const f=A[r][i]/A[i][i];
+      for(let c=i;c<8;c++) A[r][c]-=f*A[i][c]; b[r]-=f*b[i]; }
+  }
+  const h=[]; for(let i=0;i<8;i++) h.push(b[i]/A[i][i]); return h;
+}
+function warpDoc(img, src){
+  const dist=(a,b)=>Math.hypot(a[0]-b[0],a[1]-b[1]);
+  let W=Math.round((dist(src[0],src[1])+dist(src[3],src[2]))/2);
+  let Ht=Math.round((dist(src[0],src[3])+dist(src[1],src[2]))/2);
+  W=Math.max(8,W); Ht=Math.max(8,Ht);
+  const cap=2000, mx=Math.max(W,Ht); if(mx>cap){ const s=cap/mx; W=Math.round(W*s); Ht=Math.round(Ht*s); }
+  const dst=[[0,0],[W,0],[W,Ht],[0,Ht]];
+  const hg=homography(dst, src); if(!hg) return null;
+  const sc=document.createElement('canvas'); sc.width=img.naturalWidth; sc.height=img.naturalHeight;
+  const sx2=sc.getContext('2d',{willReadFrequently:true}); sx2.drawImage(img,0,0);
+  const SD=sx2.getImageData(0,0,sc.width,sc.height).data, SW=sc.width, SH=sc.height;
+  const oc=document.createElement('canvas'); oc.width=W; oc.height=Ht;
+  const octx=oc.getContext('2d'); const od=octx.createImageData(W,Ht); const OD=od.data;
+  for(let y=0;y<Ht;y++){ for(let x=0;x<W;x++){
+    const dn=hg[6]*x+hg[7]*y+1;
+    const u=(hg[0]*x+hg[1]*y+hg[2])/dn, v=(hg[3]*x+hg[4]*y+hg[5])/dn;
+    const oi=(y*W+x)*4;
+    if(u<0||v<0||u>=SW-1||v>=SH-1){ OD[oi]=255;OD[oi+1]=255;OD[oi+2]=255;OD[oi+3]=255; continue; }
+    const x0=u|0,y0=v|0,fx=u-x0,fy=v-y0; const i00=(y0*SW+x0)*4, i10=i00+4, i01=i00+SW*4, i11=i01+4;
+    for(let c=0;c<3;c++){ const a=SD[i00+c]*(1-fx)+SD[i10+c]*fx, bb=SD[i01+c]*(1-fx)+SD[i11+c]*fx; OD[oi+c]=a*(1-fy)+bb*fy; }
+    OD[oi+3]=255;
+  }}
+  octx.putImageData(od,0,0);
+  return new Promise(r=>oc.toBlob(b=>r(b),'image/jpeg',0.92));
+}
+function dcReplace(id, blob){
+  const p=(photos||[]).find(x=>x.id===id); if(!p||!blob) return;
+  p.blob=blob; idbPut(p);
+  if(thumbURL[id]){ URL.revokeObjectURL(thumbURL[id]); delete thumbURL[id]; }
+  toast('문서 보정 완료');
+  renderFolder();
+  const pv=document.getElementById('photoViewer'); if(pv && pv.style.display!=='none' && typeof pvShow==='function') pvShow();
+}
+function openDocCrop(id){
+  const p=(photos||[]).find(x=>x.id===id); if(!p) return;
+  const img=new Image();
+  img.onload=()=>{
+    const iw=img.naturalWidth, ih=img.naturalHeight;
+    const ov=document.createElement('div'); ov.id='docCrop';
+    ov.style.cssText='position:fixed;inset:0;background:#000;z-index:140;display:flex;flex-direction:column;';
+    ov.innerHTML='<div style="display:flex;gap:8px;padding:10px;background:#0b0f14;">'
+      +'<button id="dcCancel" style="flex:1;background:#374151;border:none;color:#fff;border-radius:10px;padding:14px;font-size:17px;font-weight:bold;">취소</button>'
+      +'<div style="flex:2;text-align:center;color:#ffd24d;font-size:13px;align-self:center;">네 점을 문서 모서리에 맞추세요</div>'
+      +'<button id="dcApply" style="flex:1;background:#16a34a;border:none;color:#fff;border-radius:10px;padding:14px;font-size:17px;font-weight:bold;">적용</button></div>'
+      +'<div id="dcStage" style="flex:1;position:relative;overflow:hidden;background:#111;">'
+      +'<img id="dcImg" style="position:absolute;left:0;top:0;">'
+      +'<svg id="dcSvg" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;"><polygon id="dcPoly" fill="rgba(59,130,246,0.12)" stroke="#3b82f6" stroke-width="3"/></svg></div>';
+    document.body.appendChild(ov);
+    const stage=ov.querySelector('#dcStage'), di=ov.querySelector('#dcImg'), poly=ov.querySelector('#dcPoly');
+    let geo;
+    const fit=()=>{ const sw=stage.clientWidth, sh=stage.clientHeight, s=Math.min(sw/iw, sh/ih);
+      const dw=iw*s, dh=ih*s, ox=(sw-dw)/2, oy=(sh-dh)/2;
+      di.style.left=ox+'px'; di.style.top=oy+'px'; di.style.width=dw+'px'; di.style.height=dh+'px';
+      geo={s,ox,oy,dw,dh}; };
+    di.src=img.src; fit();
+    let H=[[geo.ox+geo.dw*0.15,geo.oy+geo.dh*0.15],[geo.ox+geo.dw*0.85,geo.oy+geo.dh*0.15],[geo.ox+geo.dw*0.85,geo.oy+geo.dh*0.85],[geo.ox+geo.dw*0.15,geo.oy+geo.dh*0.85]];
+    const dots=[];
+    for(let k=0;k<4;k++){ const dot=document.createElement('div');
+      dot.style.cssText='position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:#3b82f6cc;border:3px solid #fff;touch-action:none;z-index:2;';
+      stage.appendChild(dot); dots.push(dot); }
+    const redraw=()=>{ for(let k=0;k<4;k++){ dots[k].style.left=H[k][0]+'px'; dots[k].style.top=H[k][1]+'px'; } poly.setAttribute('points', H.map(q=>q[0]+','+q[1]).join(' ')); };
+    redraw();
+    let drag=-1;
+    dots.forEach((dot,k)=> dot.addEventListener('touchstart', e=>{ drag=k; e.preventDefault(); }, {passive:false}));
+    stage.addEventListener('touchmove', e=>{ if(drag<0) return; e.preventDefault();
+      const r=stage.getBoundingClientRect(), t=e.touches[0];
+      let x=t.clientX-r.left, y=t.clientY-r.top;
+      x=Math.max(geo.ox,Math.min(geo.ox+geo.dw,x)); y=Math.max(geo.oy,Math.min(geo.oy+geo.dh,y));
+      H[drag]=[x,y]; redraw(); }, {passive:false});
+    stage.addEventListener('touchend', ()=>{ drag=-1; }, {passive:true});
+    ov.querySelector('#dcCancel').onclick=()=>{ ov.remove(); URL.revokeObjectURL(img.src); };
+    ov.querySelector('#dcApply').onclick=()=>{
+      toast('문서 변환 중…');
+      const src=H.map(q=>[ (q[0]-geo.ox)/geo.s, (q[1]-geo.oy)/geo.s ]);
+      const pr=warpDoc(img, src);
+      if(pr && pr.then){ pr.then(b=>{ dcReplace(id,b); ov.remove(); URL.revokeObjectURL(img.src); }); }
+      else { toast('변환 실패'); ov.remove(); URL.revokeObjectURL(img.src); }
+    };
+  };
+  img.onerror=()=>toast('이미지 열기 실패');
+  img.src=URL.createObjectURL(p.blob);
+}
+
 function pvBuild(){
   let ov = document.getElementById('photoViewer');
   if(ov) return ov;
@@ -376,6 +509,7 @@ function pvBuild(){
     '<button id="pvFPrev" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:12px 10px;font-size:15px;">◀폴더</button>'+
     '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:16px;font-weight:bold;"></div>'+
     '<button id="pvFNext" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:12px 10px;font-size:15px;">폴더▶</button>'+
+    '<button id="pvCrop" style="background:#a16207;border:none;color:#fff;border-radius:10px;padding:12px 8px;font-size:14px;font-weight:bold;">✂문서</button>'+
     '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:12px 12px;font-size:16px;font-weight:bold;">🗑</button>'+
     '</div>'+
     '<div id="pvStage" style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">'+
@@ -387,6 +521,7 @@ function pvBuild(){
   ov.querySelector('#pvClose').onclick = ()=>{ ov.style.display='none'; };
   ov.querySelector('#pvFPrev').onclick = ()=>pvFolderMove(-1);
   ov.querySelector('#pvFNext').onclick = ()=>pvFolderMove(1);
+  ov.querySelector('#pvCrop').onclick = ()=>{ const list=folderPhotos(pvFid); const p=list[pvIdx]; if(p) openDocCrop(p.id); };
   ov.querySelector('#pvPrev').onclick = ()=>pvNav(-1);
   ov.querySelector('#pvNext').onclick = ()=>pvNav(1);
   ov.querySelector('#pvDel').onclick = ()=>{
@@ -578,11 +713,6 @@ function renderZoomBar(){
     renderZoomBar(); toast('사진 비율: ' + ASPECTS[aspectIdx].label);
   };
   bar.appendChild(a);
-  // 📢 소리 촬영 (박수·구호)
-  const m = document.createElement('button'); m.className='zbtn alt' + (micOn?' on':'');
-  m.textContent = '📢' + (micOn?'ON':'');
-  m.onclick = toggleMic;
-  bar.appendChild(m);
   // ⏱ 3초 자동촬영
   const it = document.createElement('button'); it.className='zbtn alt' + (intOn?' on':'');
   it.textContent = '⏱3초' + (intOn?'ON':'');
