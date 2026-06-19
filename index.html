@@ -109,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v21</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v22</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -457,7 +457,7 @@ function openDocCrop(id){
     ov.style.cssText='position:fixed;inset:0;background:#000;z-index:140;display:flex;flex-direction:column;';
     ov.innerHTML='<div style="display:flex;gap:8px;padding:10px;background:#0b0f14;">'
       +'<button id="dcCancel" style="flex:1;background:#374151;border:none;color:#fff;border-radius:10px;padding:14px;font-size:17px;font-weight:bold;">취소</button>'
-      +'<div style="flex:2;text-align:center;color:#ffd24d;font-size:13px;align-self:center;">네 점을 문서 모서리에 맞추세요</div>'
+      +'<div style="flex:2;text-align:center;color:#ffd24d;font-size:13px;align-self:center;">파란 점=모서리, 주황 점=변(수평·수직)</div>'
       +'<button id="dcApply" style="flex:1;background:#16a34a;border:none;color:#fff;border-radius:10px;padding:14px;font-size:17px;font-weight:bold;">적용</button></div>'
       +'<div id="dcStage" style="flex:1;position:relative;overflow:hidden;background:#111;">'
       +'<img id="dcImg" style="position:absolute;left:0;top:0;">'
@@ -470,21 +470,37 @@ function openDocCrop(id){
       di.style.left=ox+'px'; di.style.top=oy+'px'; di.style.width=dw+'px'; di.style.height=dh+'px';
       geo={s,ox,oy,dw,dh}; };
     di.src=img.src; fit();
-    let H=[[geo.ox+geo.dw*0.15,geo.oy+geo.dh*0.15],[geo.ox+geo.dw*0.85,geo.oy+geo.dh*0.15],[geo.ox+geo.dw*0.85,geo.oy+geo.dh*0.85],[geo.ox+geo.dw*0.15,geo.oy+geo.dh*0.85]];
-    const dots=[];
-    for(let k=0;k<4;k++){ const dot=document.createElement('div');
-      dot.style.cssText='position:absolute;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;background:#3b82f6cc;border:3px solid #fff;touch-action:none;z-index:2;';
-      stage.appendChild(dot); dots.push(dot); }
-    const redraw=()=>{ for(let k=0;k<4;k++){ dots[k].style.left=H[k][0]+'px'; dots[k].style.top=H[k][1]+'px'; } poly.setAttribute('points', H.map(q=>q[0]+','+q[1]).join(' ')); };
+    let H=[[geo.ox,geo.oy],[geo.ox+geo.dw,geo.oy],[geo.ox+geo.dw,geo.oy+geo.dh],[geo.ox,geo.oy+geo.dh]];
+    const clX=v=>Math.max(geo.ox,Math.min(geo.ox+geo.dw,v)), clY=v=>Math.max(geo.oy,Math.min(geo.oy+geo.dh,v));
+    const dots=[], edges=[];
+    for(let k=0;k<4;k++){ const d=document.createElement('div');
+      d.style.cssText='position:absolute;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;background:#3b82f6cc;border:3px solid #fff;touch-action:none;z-index:3;';
+      stage.appendChild(d); dots.push(d); }
+    for(let k=0;k<4;k++){ const d=document.createElement('div');
+      d.style.cssText='position:absolute;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:7px;background:#f59e0bcc;border:3px solid #fff;touch-action:none;z-index:3;';
+      stage.appendChild(d); edges.push(d); }
+    const emid=k=>{ const a=H[k], b=H[(k+1)%4]; return [(a[0]+b[0])/2,(a[1]+b[1])/2]; };
+    const redraw=()=>{
+      for(let k=0;k<4;k++){ dots[k].style.left=H[k][0]+'px'; dots[k].style.top=H[k][1]+'px'; }
+      for(let k=0;k<4;k++){ const m=emid(k); edges[k].style.left=m[0]+'px'; edges[k].style.top=m[1]+'px'; }
+      poly.setAttribute('points', H.map(q=>q[0]+','+q[1]).join(' '));
+    };
     redraw();
-    let drag=-1;
-    dots.forEach((dot,k)=> dot.addEventListener('touchstart', e=>{ drag=k; e.preventDefault(); }, {passive:false}));
-    stage.addEventListener('touchmove', e=>{ if(drag<0) return; e.preventDefault();
+    let drag=-1, dEdge=-1;
+    dots.forEach((d,k)=> d.addEventListener('touchstart', e=>{ drag=k; dEdge=-1; e.preventDefault(); }, {passive:false}));
+    edges.forEach((d,k)=> d.addEventListener('touchstart', e=>{ dEdge=k; drag=-1; e.preventDefault(); }, {passive:false}));
+    stage.addEventListener('touchmove', e=>{
+      if(drag<0 && dEdge<0) return; e.preventDefault();
       const r=stage.getBoundingClientRect(), t=e.touches[0];
-      let x=t.clientX-r.left, y=t.clientY-r.top;
-      x=Math.max(geo.ox,Math.min(geo.ox+geo.dw,x)); y=Math.max(geo.oy,Math.min(geo.oy+geo.dh,y));
-      H[drag]=[x,y]; redraw(); }, {passive:false});
-    stage.addEventListener('touchend', ()=>{ drag=-1; }, {passive:true});
+      const x=clX(t.clientX-r.left), y=clY(t.clientY-r.top);
+      if(drag>=0){ H[drag]=[x,y]; }
+      else { const a=dEdge, b=(dEdge+1)%4, m=emid(dEdge);
+        if(dEdge===0||dEdge===2){ const dy=y-m[1]; H[a]=[H[a][0],clY(H[a][1]+dy)]; H[b]=[H[b][0],clY(H[b][1]+dy)]; }
+        else { const dx=x-m[0]; H[a]=[clX(H[a][0]+dx),H[a][1]]; H[b]=[clX(H[b][0]+dx),H[b][1]]; }
+      }
+      redraw();
+    }, {passive:false});
+    stage.addEventListener('touchend', ()=>{ drag=-1; dEdge=-1; }, {passive:true});
     ov.querySelector('#dcCancel').onclick=()=>{ ov.remove(); URL.revokeObjectURL(img.src); };
     ov.querySelector('#dcApply').onclick=()=>{
       toast('문서 변환 중…');
@@ -542,11 +558,8 @@ function pvBuild(){
 function pvFolderMove(dir){
   if(!FIDS || !FIDS.length) return;
   let i = FIDS.indexOf(pvFid); if(i<0) i=0;
-  for(let s=0;s<FIDS.length;s++){
-    i=(i+dir+FIDS.length)%FIDS.length;
-    if(folderPhotos(FIDS[i]).length){ pvFid=FIDS[i]; curFolder=FIDS[i]; pvIdx=0; pvShow(); toast(FLABEL[FIDS[i]]); return; }
-  }
-  toast('다른 폴더에 사진이 없습니다');
+  i=(i+dir+FIDS.length)%FIDS.length;
+  pvFid=FIDS[i]; curFolder=FIDS[i]; pvIdx=0; pvShow(); toast(FLABEL[FIDS[i]]);
 }
 function pvNav(d){
   const list = folderPhotos(pvFid);
@@ -557,12 +570,18 @@ function pvNav(d){
 function pvShow(){
   const ov = document.getElementById('photoViewer'); if(!ov) return;
   const list = folderPhotos(pvFid);
-  if(!list.length){ ov.style.display='none'; if(curFolder) renderFolder(); return; }
+  if(!list.length){
+    const _ie=ov.querySelector('#pvImg'); if(_ie) _ie.style.display='none';
+    ov.querySelector('#pvTag').textContent = (FSHORT[pvFid]||'') + ' — 비어 있음';
+    ov.querySelector('#pvPrev').style.visibility='hidden';
+    ov.querySelector('#pvNext').style.visibility='hidden';
+    ov.style.display='flex'; return;
+  }
   if(pvIdx >= list.length) pvIdx = list.length - 1;
   if(pvIdx < 0) pvIdx = 0;
   const p = list[pvIdx];
   if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
-  const _img = ov.querySelector('#pvImg');
+  const _img = ov.querySelector('#pvImg'); _img.style.display='';
   _img.onload = ()=>{
     const land = _img.naturalWidth > _img.naturalHeight;
     const portrait = window.innerHeight >= window.innerWidth;
