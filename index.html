@@ -109,7 +109,7 @@
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
   <h1>📷 후드사진</h1>
-  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v24</span></div>
+  <div class="sub">폴더를 누르고 촬영하면 자동 분류됩니다 · 총 <b id="totalCnt">0</b>장 · <span style="color:var(--acc)">v25</span></div>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -487,7 +487,8 @@ function buildDocCrop(id, img){
     document.body.appendChild(ov);
     const stage=ov.querySelector('#dcStage'), di=ov.querySelector('#dcImg'), poly=ov.querySelector('#dcPoly');
     let geo;
-    const fit=()=>{ const sw=stage.clientWidth, sh=stage.clientHeight, s=Math.min(sw/iw, sh/ih);
+    const fit=()=>{ const PAD=30; const sw=stage.clientWidth, sh=stage.clientHeight;
+      const aw=Math.max(20,sw-2*PAD), ah=Math.max(20,sh-2*PAD), s=Math.min(aw/iw, ah/ih);
       const dw=iw*s, dh=ih*s, ox=(sw-dw)/2, oy=(sh-dh)/2;
       di.style.left=ox+'px'; di.style.top=oy+'px'; di.style.width=dw+'px'; di.style.height=dh+'px';
       geo={s,ox,oy,dw,dh}; };
@@ -545,7 +546,7 @@ function pvBuild(){
     '<button id="pvFPrev" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:12px 10px;font-size:15px;">◀폴더</button>'+
     '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:16px;font-weight:bold;"></div>'+
     '<button id="pvFNext" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:12px 10px;font-size:15px;">폴더▶</button>'+
-    '<button id="pvCrop" style="background:#a16207;border:none;color:#fff;border-radius:10px;padding:12px 8px;font-size:14px;font-weight:bold;">✂문서</button>'+
+    '<button id="pvCrop" style="background:#a16207;border:none;color:#fff;border-radius:10px;padding:12px 8px;font-size:14px;font-weight:bold;">✂사진</button>'+
     '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:12px 12px;font-size:16px;font-weight:bold;">🗑</button>'+
     '</div>'+
     '<div id="pvStage" style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;">'+
