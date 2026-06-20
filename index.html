@@ -108,7 +108,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v28</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v29</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -186,8 +186,8 @@
     <img class="lastth" id="lastTh" alt="">
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
     <div class="camside">
-      <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px;white-space:nowrap">✋안정</button>
-      <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px">👁2초</button>
+      <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px;white-space:nowrap">✋안정ON</button>
+      <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px;white-space:nowrap">👁2초ON</button>
     </div>
   </div>
 </div>
@@ -645,7 +645,7 @@ const ASPECTS=[{id:'full',label:'FULL',r:4000/1848,fw:4000,fh:1848},{id:'wide',l
 let aspectIdx=(()=>{ try{ const s=localStorage.getItem('cam_aspect_v7'); const i=ASPECTS.findIndex(a=>a.id===s); return i<0?0:i; }catch(e){ return 0; } })();
 try{ sndOn = localStorage.getItem('cam_snd')!=='0'; }catch(e){}
 let stabOn = true; try{ stabOn = localStorage.getItem('cam_stab')!=='0'; }catch(e){}
-let reviewOn = false; try{ reviewOn = localStorage.getItem('cam_review')==='1'; }catch(e){}
+let reviewOn = true; try{ reviewOn = localStorage.getItem('cam_review')!=='0'; }catch(e){}
 let reviewing = false, reviewTimer = null;
 function toggleReview(){
   reviewOn = !reviewOn; try{ localStorage.setItem('cam_review', reviewOn?'1':'0'); }catch(e){}
