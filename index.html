@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v32</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v33</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -1180,7 +1180,8 @@ function buildSchedList(list){
     var wk=_md(mon)+'~'+_md(sun);
     if(wk!==curw){curw=wk; html+='<div style="position:sticky;top:0;background:var(--acc);color:#fff;font-weight:bold;padding:6px 10px;margin:8px 0 4px;border-radius:6px;">📅 '+wk+' 주</div>';}
     var dd=new Date(it.d+'T00:00');
-    html+='<div style="display:flex;gap:6px;padding:8px 4px;border-bottom:1px solid var(--line);align-items:center;font-size:14px;"><div style="flex:0 0 58px;color:var(--acc);font-weight:bold;">'+_md(dd)+'('+_escK(it.w)+')</div><div style="flex:0 0 46px;">'+_escK(it.t)+'</div><div style="flex:0 0 26px;color:var(--sub);">'+_escK(it.g)+'</div><div style="flex:1;min-width:0;">'+_escK(it.n)+'</div></div>';
+    var _ts=new Date(it.d+'T'+(it.t||'00:00')).getTime();
+    html+='<div class="schedRow" data-ts="'+_ts+'" style="display:flex;gap:6px;padding:8px 4px;border-bottom:1px solid var(--line);align-items:center;font-size:14px;"><div style="flex:0 0 58px;color:var(--acc);font-weight:bold;">'+_md(dd)+'('+_escK(it.w)+')</div><div style="flex:0 0 46px;">'+_escK(it.t)+'</div><div style="flex:0 0 26px;color:var(--sub);">'+_escK(it.g)+'</div><div style="flex:1;min-width:0;">'+_escK(it.n)+'</div></div>';
   });
   return html||'<div style="padding:24px;text-align:center;color:var(--sub)">일정 없음</div>';
 }
@@ -1194,8 +1195,9 @@ function showSched(idx){
     ov.addEventListener('touchend',function(e){ if(ov._x==null)return; var dx=e.changedTouches[0].clientX-ov._x,dy=e.changedTouches[0].clientY-ov._y; ov._x=null; if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)) schedNav(dx>0?1:-1); },{passive:true});
   }
   ov.style.display='flex';
-  ov.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--line);"><button onclick="closeSched()" style="padding:8px 12px;border:none;border-radius:8px;background:#374151;color:#fff;font-weight:bold;">← 홈</button><b style="flex:1;font-size:16px;">'+meta[0]+'</b><span style="color:var(--sub);font-size:12px;">'+idx+'/3</span></div><div style="overflow:auto;flex:1;padding:6px 10px 40px;">'+buildSchedList(meta[1])+'</div>';
+  ov.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--line);"><button onclick="closeSched()" style="padding:8px 12px;border:none;border-radius:8px;background:#374151;color:#fff;font-weight:bold;">← 홈</button><b style="flex:1;font-size:16px;">'+meta[0]+'</b><span style="color:var(--sub);font-size:12px;">'+idx+'/3</span></div><div id="schedScroll" style="overflow:auto;flex:1;padding:6px 10px 40px;">'+buildSchedList(meta[1])+'</div>'; setTimeout(_centerNow,40);
 }
+function _centerNow(){ var sc=document.getElementById('schedScroll'); if(!sc)return; var rows=sc.querySelectorAll('.schedRow'); if(!rows.length)return; var now=Date.now(),best=null,bd=Infinity; rows.forEach(function(r){var t=+r.getAttribute('data-ts'); var d=Math.abs(t-now); if(d<bd){bd=d;best=r;}}); if(best){ var rb=best.getBoundingClientRect(),cb=sc.getBoundingClientRect(); sc.scrollTop += (rb.top-cb.top) - sc.clientHeight/2 + rb.height/2; best.style.background='#15384f'; best.style.boxShadow='inset 4px 0 0 var(--acc)'; } }
 function closeSched(){ curSched=0; var ov=document.getElementById('schedView'); if(ov) ov.style.display='none'; }
 function schedNav(dir){ var n=curSched+dir; if(n<=0){closeSched();return;} if(n>3)return; showSched(n); }
 function _attachHomeSwipe(){ var hv=document.getElementById('homeView'); if(!hv||hv._sw)return; hv._sw=1;
