@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v33</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v34</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -130,6 +130,7 @@
   </div>
 
   <div id="homeStatus" style="font-size:13px;color:var(--sub);margin-bottom:6px;"></div>
+  <div style="font-size:11px;color:var(--sub);opacity:.75;margin:-2px 0 6px;">↔ 왼→오 밀기: 점검일정 · 오→왼 밀기: 재방문 체크</div>
   <div class="grid" id="folderGrid"></div>
 
   <div class="bottom">
@@ -1181,10 +1182,73 @@ function buildSchedList(list){
     if(wk!==curw){curw=wk; html+='<div style="position:sticky;top:0;background:var(--acc);color:#fff;font-weight:bold;padding:6px 10px;margin:8px 0 4px;border-radius:6px;">📅 '+wk+' 주</div>';}
     var dd=new Date(it.d+'T00:00');
     var _ts=new Date(it.d+'T'+(it.t||'00:00')).getTime();
-    html+='<div class="schedRow" data-ts="'+_ts+'" style="display:flex;gap:6px;padding:8px 4px;border-bottom:1px solid var(--line);align-items:center;font-size:14px;"><div style="flex:0 0 58px;color:var(--acc);font-weight:bold;">'+_md(dd)+'('+_escK(it.w)+')</div><div style="flex:0 0 46px;">'+_escK(it.t)+'</div><div style="flex:0 0 26px;color:var(--sub);">'+_escK(it.g)+'</div><div style="flex:1;min-width:0;">'+_escK(it.n)+'</div></div>';
+    html+='<div class="schedRow" data-ts="'+_ts+'" style="display:flex;gap:6px;padding:8px 4px;border-bottom:1px solid var(--line);align-items:center;font-size:14px;"><div style="flex:0 0 58px;color:var(--acc);font-weight:bold;">'+_md(dd)+'('+_escK(it.w)+')</div><div style="flex:0 0 46px;">'+_escK(it.t)+'</div><div style="flex:0 0 26px;color:var(--sub);">'+_escK(it.g)+'</div><div style="flex:1;min-width:0;"><span style="color:#fbbf24;font-weight:bold;">'+(NAME2CODE[it.n]||'')+'</span> '+_escK(it.n)+'</div></div>';
   });
   return html||'<div style="padding:24px;text-align:center;color:var(--sub)">일정 없음</div>';
 }
+var NAME2CODE={"포일사과나무유치원":"A2","갈뫼초등학교":"A3","광정초등학교":"A6","숲속해뜰유치원":"A1","군포대야초등학교":"A7","관모초등학교":"A5","송양유":"B1","호암유":"B2","가능초":"B3","금오초":"B4","녹양초":"B5","동오초":"B6","희망학교":"B52","군포옥천초등학교":"A9","궁내초등학교":"A11","금정초등학교":"A12","당동초등학교":"A15","의정부부용초":"B16","의정부초":"B24","송현고":"B43","의정부여자고":"B45","의정부청룡초":"B23","동암중":"B31","호원고":"B46","회룡중":"B38","태을초등학교":"A33","곡란초등학교":"A4","군포e비즈니스고등학교":"A51","산본중학교":"A46","도장중학교":"A43","새말초":"B11","송양고":"B42","삼현초":"B10","송민학교":"B51","녹양중":"B29","당동중학교":"A40","군포신기초등학교":"A8","수리중학교":"A47","금정중학교":"A39","수리고등학교":"A55","군포화산초등학교":"A10","흥진중학교":"A49","덕장중학교":"A42","의왕정음학교":"A62","갈뫼중학교":"A36","민락초":"B7","충의중":"B36","동국대 영석고":"B49","발곡초":"B8","호암초":"B28","의정부광동고":"B50","버들개초":"B9","경기북과학고":"B40","솔뫼초":"B12","양정초등학교":"A19","부곡중앙초등학교":"A23","의왕고등학교":"A57","오금초등학교":"A27","의정부용현초":"B20","송양중":"B35","의정부서초":"B17","의정부장암초":"B21","부용중":"B33","의정부중앙초":"B22","의정부공업고":"B44","의정부효자초":"B27","의순초":"B15","솔뫼중":"B34","흥진초등학교":"A35","경기폴리텍고등학교":"A50","신곡중학교":"B53","의정부신곡초":"B19","송양초":"B13","부용고":"B41","의정부호원초":"B26","호원중":"B37","경민중":"B39","경민비즈니스고":"B48","다온중":"B30","의정부호동초":"B25","어룡초":"B14","의정부송산초":"B18","경민고":"B47","민락중":"B32","내동초등학교":"A13","백운초등학교":"A21","산본고등학교":"A54","능내초등학교":"A14","곡란중학교":"A37","당정중학교":"A41","경기외국어고등학교":"A59","당정초등학교":"A16","용호중학교":"A48","군포고등학교":"A60","도장초등학교":"A17","한얼초등학교":"A34","오전초등학교":"A28","모락초등학교":"A20","둔대초등학교":"A18","의왕초등학교":"A32","모락고등학교":"A53","백운호수초등학교":"A22","수리초등학교":"A26","궁내중학교":"A38","산본초등학교":"A24","모락중학교":"A44","군포중앙고등학교":"A52","왕곡초등학교":"A29","우성고등학교":"A61","송안초등학교":"A25","용호초등학교":"A30","용호고등학교":"A56","백운중학교":"A45","의왕덕성초등학교":"A31","흥진고등학교":"A58","양저초등학교":"A19"};
+
+/* ───────── 재방문 체크리스트 (오른→왼 스와이프) ───────── */
+var GPW_CHECK=[["A1","숲속해뜰유치원",1],["A2","포일사과나무유치원",1],["A3","갈뫼초등학교",1],["A4","곡란초등학교",0],["A5","관모초등학교",1],["A6","광정초등학교",1],["A7","군포대야초등학교",1],["A8","군포신기초등학교",0],["A9","군포옥천초등학교",1],["A11","궁내초등학교",1],["A12","금정초등학교",1],["A15","당동초등학교",1],["A33","태을초등학교",0],["A36","갈뫼중학교",0],["A43","도장중학교",0],["A46","산본중학교",0],["A51","군포e비즈니스고등학교",0]];
+var JB_CHECK=[["B1","송양유치원"],["B2","호암유치원"],["B3","가능초등학교"],["B4","금오초등학교"],["B5","녹양초등학교"],["B6","동오초등학교"],["B52","희망학교"]];
+function _chkLoad(){ try{return JSON.parse(localStorage.getItem('revisit_chk_v1')||'{}');}catch(e){return {};} }
+function _chkSave(){ try{localStorage.setItem('revisit_chk_v1',JSON.stringify(CHK));}catch(e){} }
+var CHK=_chkLoad();
+function _chkCell(key,enabled){
+  if(!enabled) return '<div style="display:flex;align-items:center;justify-content:center;color:#374151;min-height:46px;">–</div>';
+  var on=!!CHK[key];
+  return '<div onclick="toggleChk(\''+key+'\',this)" style="display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-user-select:none;user-select:none;background:'+(on?'#15803d':'#1f2937')+';border:2px solid '+(on?'#22c55e':'#374151')+';border-radius:8px;min-height:46px;font-size:22px;color:'+(on?'#fff':'#6b7280')+';font-weight:bold;">'+(on?'✓':'')+'</div>';
+}
+function toggleChk(key,el){
+  CHK[key]=!CHK[key]; _chkSave();
+  var on=!!CHK[key];
+  el.style.background=on?'#15803d':'#1f2937';
+  el.style.borderColor=on?'#22c55e':'#374151';
+  el.style.color=on?'#fff':'#6b7280';
+  el.textContent=on?'✓':'';
+  var hd=document.getElementById('chkCount'); if(hd&&window.__chkIdx) hd.textContent=_chkProgress(window.__chkIdx);
+}
+function _chkProgress(idx){
+  var done=0,total=0;
+  if(idx===1){ GPW_CHECK.forEach(function(r){ if(r[2]){total++; if(CHK[r[0]+'_h'])done++;} total++; if(CHK[r[0]+'_d'])done++; }); }
+  else { JB_CHECK.forEach(function(r){ total++; if(CHK[r[0]+'_h'])done++; }); }
+  return done+'/'+total+' 완료';
+}
+function _chkRow(code,name,cells,cols){
+  return '<div style="display:grid;grid-template-columns:'+cols+';gap:6px;align-items:stretch;margin-bottom:6px;">'
+   +'<div style="display:flex;align-items:center;gap:6px;min-width:0;font-size:15px;"><span style="color:#fbbf24;font-weight:bold;flex:0 0 auto;">'+code+'</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+_escK(name)+'</span></div>'
+   +cells+'</div>';
+}
+function buildChkTable(idx){
+  if(idx===1){
+    var cols='1fr 78px 78px';
+    var h='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;position:sticky;top:0;background:var(--bg,#0b0f14);padding:6px 0;font-weight:bold;color:var(--sub);font-size:13px;z-index:2;"><div style="padding-left:4px;">학교</div><div style="text-align:center;line-height:1.15;">열선풍속<br>측정</div><div style="text-align:center;">덕트확인</div></div>';
+    GPW_CHECK.forEach(function(r){ h+=_chkRow(r[0],r[1],_chkCell(r[0]+'_h',r[2])+_chkCell(r[0]+'_d',1),cols); });
+    return h;
+  } else {
+    var cols='1fr 120px';
+    var h='<div style="display:grid;grid-template-columns:'+cols+';gap:6px;position:sticky;top:0;background:var(--bg,#0b0f14);padding:6px 0;font-weight:bold;color:var(--sub);font-size:13px;z-index:2;"><div style="padding-left:4px;">학교</div><div style="text-align:center;">열선풍속측정</div></div>';
+    JB_CHECK.forEach(function(r){ h+=_chkRow(r[0],r[1],_chkCell(r[0]+'_h',1),cols); });
+    return h;
+  }
+}
+var curChk=0;
+function openCheck(idx){
+  curChk=idx; window.__chkIdx=idx;
+  var meta={1:'군포의왕 재방문',2:'의정부 재방문'}[idx];
+  var ov=document.getElementById('checkView');
+  if(!ov){ ov=document.createElement('div'); ov.id='checkView'; ov.style.cssText='position:fixed;inset:0;background:var(--bg,#0b0f14);z-index:120;display:flex;flex-direction:column;'; document.body.appendChild(ov);
+    ov.addEventListener('touchstart',function(e){ if(e.target.closest('[onclick]')){ov._x=null;return;} ov._x=e.touches[0].clientX;ov._y=e.touches[0].clientY;},{passive:true});
+    ov.addEventListener('touchend',function(e){ if(ov._x==null)return; var dx=e.changedTouches[0].clientX-ov._x,dy=e.changedTouches[0].clientY-ov._y; ov._x=null; if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)) checkNav(dx<0?1:-1); },{passive:true});
+  }
+  ov.style.display='flex';
+  ov.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--line);"><button onclick="closeCheck()" style="padding:8px 12px;border:none;border-radius:8px;background:#374151;color:#fff;font-weight:bold;">← 홈</button><b style="flex:1;font-size:16px;">'+meta+'</b><span id="chkCount" style="color:var(--ok,#22c55e);font-size:13px;font-weight:bold;">'+_chkProgress(idx)+'</span></div>'
+   +'<div style="padding:4px 10px;color:var(--sub);font-size:12px;">터치하면 ✓(완료) · 좌우로 밀어 화면 전환 · '+idx+'/2</div>'
+   +'<div style="overflow:auto;flex:1;padding:4px 10px 40px;">'+buildChkTable(idx)+'</div>';
+}
+function closeCheck(){ curChk=0; var ov=document.getElementById('checkView'); if(ov) ov.style.display='none'; }
+function checkNav(dir){ var n=curChk+dir; if(n<=0){closeCheck();return;} if(n>2)return; openCheck(n); }
+
 var curSched=0;
 function showSched(idx){
   curSched=idx;
@@ -1202,10 +1266,11 @@ function closeSched(){ curSched=0; var ov=document.getElementById('schedView'); 
 function schedNav(dir){ var n=curSched+dir; if(n<=0){closeSched();return;} if(n>3)return; showSched(n); }
 function _attachHomeSwipe(){ var hv=document.getElementById('homeView'); if(!hv||hv._sw)return; hv._sw=1;
   hv.addEventListener('touchstart',function(e){ if(e.touches.length!==1){hv._x=null;return;} hv._x=e.touches[0].clientX; hv._y=e.touches[0].clientY; },{passive:true});
-  hv.addEventListener('touchend',function(e){ if(hv._x==null)return; var dx=e.changedTouches[0].clientX-hv._x,dy=e.changedTouches[0].clientY-hv._y; hv._x=null; if(dx>70&&Math.abs(dx)>Math.abs(dy)*1.4) showSched(1); },{passive:true}); }
+  hv.addEventListener('touchend',function(e){ if(hv._x==null)return; var dx=e.changedTouches[0].clientX-hv._x,dy=e.changedTouches[0].clientY-hv._y; hv._x=null; if(dx>70&&Math.abs(dx)>Math.abs(dy)*1.4) showSched(1); else if(dx<-70&&Math.abs(dx)>Math.abs(dy)*1.4) openCheck(1); },{passive:true}); }
 
 window.__btBack = function(){
   var sv=document.getElementById('schedView'); if(sv&&sv.style.display!=='none'){ closeSched(); return 'handled'; }
+  var cv=document.getElementById('checkView'); if(cv&&cv.style.display!=='none'){ closeCheck(); return 'handled'; }
   var dd=document.getElementById('pvDelDlg'); if(dd){ dd.remove(); return 'handled'; }
   var dc=document.getElementById('docCrop'); if(dc){ dc.remove(); window.__dcOpen=false; return 'handled'; }
   const pv=document.getElementById('photoViewer'); if(pv && pv.style.display!=='none'){ pv.style.display='none'; pvSyncBack(); return 'handled'; }
