@@ -42,6 +42,7 @@
     background:var(--acc); border-radius:11px; font-size:12px; padding:0 5px; display:none;
   }
   .fbtn.has .badge{display:block; background:var(--ok); color:#06250f; font-weight:bold;}
+  #homeView .badge{position:static; top:auto; right:auto; margin-top:3px; height:auto; line-height:1.3; min-width:0;}
   .bottom{
     position:fixed; left:0; right:0; bottom:0; background:#0b0f14ee; border-top:1px solid var(--line);
     display:flex; gap:8px; padding:10px 12px; max-width:584px; margin:0 auto;
@@ -108,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v29</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v30</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -547,12 +548,14 @@ function pvBuild(){
     '<div style="display:flex;align-items:center;gap:8px;padding:10px;background:#0b0f14;order:2;">'+
     '<button id="pvClose" style="background:#374151;border:none;color:#fff;border-radius:10px;padding:12px 12px;font-size:16px;font-weight:bold;">✕</button>'+
     '<button id="pvFPrev" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:10px 8px;font-size:16px;">◀</button>'+
-    '<div id="pvTag" style="flex:1;text-align:center;color:#fff;font-size:13px;font-weight:bold;line-height:1.15;"></div>'+
+    '<div id="pvTag" style="flex:0 1 auto;text-align:center;color:#fff;font-size:13px;font-weight:bold;line-height:1.15;padding:0 4px;"></div>'+
     '<button id="pvFNext" style="background:#1f2937;border:1px solid #4b5563;color:#fff;border-radius:10px;padding:10px 8px;font-size:16px;">▶</button>'+
-    '<button id="pvPhone" style="background:#f59e0b;border:none;color:#3b2300;border-radius:10px;padding:6px 7px;font-size:11px;font-weight:bold;line-height:1.15;min-width:42px;">📷<br>폰카</button>'+
-    '<button id="pvCont" style="background:#2563eb;border:none;color:#fff;border-radius:10px;padding:6px 7px;font-size:11px;font-weight:bold;line-height:1.15;min-width:42px;">📷<br>고속</button>'+
-    '<button id="pvCrop" style="background:#a16207;border:none;color:#fff;border-radius:10px;padding:6px 7px;font-size:11px;font-weight:bold;line-height:1.15;min-width:42px;">✂<br>크롭</button>'+
-    '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:10px;padding:6px 7px;font-size:11px;font-weight:bold;line-height:1.15;min-width:42px;">🗑<br>삭제</button>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;flex:1 1 auto;">'+
+    '<button id="pvPhone" style="background:#f59e0b;border:none;color:#3b2300;border-radius:8px;padding:9px 4px;font-size:14px;font-weight:bold;white-space:nowrap;">📷폰카</button>'+
+    '<button id="pvCont" style="background:#2563eb;border:none;color:#fff;border-radius:8px;padding:9px 4px;font-size:14px;font-weight:bold;white-space:nowrap;">📷고속</button>'+
+    '<button id="pvCrop" style="background:#a16207;border:none;color:#fff;border-radius:8px;padding:9px 4px;font-size:14px;font-weight:bold;white-space:nowrap;">✂크롭</button>'+
+    '<button id="pvDel" style="background:#ef4444;border:none;color:#fff;border-radius:8px;padding:9px 4px;font-size:14px;font-weight:bold;white-space:nowrap;">🗑삭제</button>'+
+    '</div>'+
     '</div>'+
     '<div id="pvStage" style="flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#000;order:1;">'+
     '<img id="pvImg" style="max-width:100%;max-height:100%;object-fit:contain;">'+
@@ -615,7 +618,7 @@ function pvShow(){
   const list = folderPhotos(pvFid);
   if(!list.length){
     const _ie=ov.querySelector('#pvImg'); if(_ie) _ie.style.display='none';
-    ov.querySelector('#pvTag').textContent = (FSHORT[pvFid]||'') + ' — 비어 있음';
+    ov.querySelector('#pvTag').innerHTML = (FSHORT[pvFid]||'') + '<br>사진 없음';
     ov.style.display='flex'; return;
   }
   if(pvIdx >= list.length) pvIdx = list.length - 1;
