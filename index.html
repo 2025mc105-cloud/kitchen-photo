@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v34</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v35</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -162,6 +162,7 @@
           <button onclick="reorderSel('down')" style="flex:1;padding:12px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#3b82f6;color:#fff;">뒤로▶</button>
           <button onclick="reorderSel('last')" style="flex:1;padding:12px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#2563eb;color:#fff;">맨뒤⏭</button>
         </div>
+        <button onclick="moveSel()" style="width:100%;margin-top:6px;padding:12px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#9333ea;color:#fff;">📁 다른 폴더로 이동</button>
       </div>
     </div>
     <button class="gal" onclick="openGallery()" style="width:100%;margin:0">🖼 갤러리에서 가져오기 (여러 장 선택 가능)</button>
@@ -412,6 +413,47 @@ function reorderSel(where){
   newList.forEach((p,k)=>{ p.seq = pool[k]; idbPut(p); });
   renderFolder();
 }
+
+function moveSel(){
+  if(!selIds.size){ toast('먼저 옮길 사진들을 누르세요'); return; }
+  var targets = FOLDERS.filter(function(f){ return f.id!==curFolder; });
+  var ov=document.getElementById('moveDlg'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='moveDlg';
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#000c;display:flex;align-items:center;justify-content:center;padding:18px;';
+  var box=document.createElement('div');
+  box.style.cssText='background:#1f2937;border-radius:14px;padding:16px;width:100%;max-width:440px;max-height:82vh;overflow:auto;';
+  box.innerHTML='<div style="font-size:16px;font-weight:bold;color:#fff;margin-bottom:12px;">선택한 '+selIds.size+'장을 어느 폴더로 옮길까요?</div>';
+  var wrap=document.createElement('div'); wrap.style.cssText='display:flex;flex-direction:column;gap:6px;';
+  targets.forEach(function(f){
+    var b=document.createElement('button');
+    b.textContent=(f.short||f.label);
+    b.style.cssText='padding:13px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#374151;color:#fff;text-align:left;';
+    b.onclick=function(){ doMove(f.id); ov.remove(); };
+    wrap.appendChild(b);
+  });
+  box.appendChild(wrap);
+  var cancel=document.createElement('button');
+  cancel.textContent='취소'; cancel.style.cssText='margin-top:12px;width:100%;padding:13px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#6b7280;color:#fff;';
+  cancel.onclick=function(){ ov.remove(); };
+  box.appendChild(cancel);
+  ov.appendChild(box);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+function doMove(targetFid){
+  var list = folderPhotos(curFolder);
+  var selected = list.filter(function(p){ return selIds.has(p.id); });
+  if(!selected.length) return;
+  var tgt = folderPhotos(targetFid);
+  var base = tgt.length ? Math.max.apply(null, tgt.map(function(p){return p.seq;})) : 0;
+  selected.forEach(function(p){ base+=1; p.fid=targetFid; p.seq=base; idbPut(p); });
+  selIds.clear();
+  renderFolder();
+  if(typeof renderHome==='function') renderHome();
+  var tf=FOLDERS.find(function(f){return f.id===targetFid;});
+  toast(selected.length+'장을 '+((tf&&(tf.short||tf.label))||targetFid)+'(으)로 옮겼어요');
+}
+
 /* ───────── 문서 모서리 보정(수동 4점 → 반듯하게) ───────── */
 function homography(from, to){
   const A=[], b=[];
