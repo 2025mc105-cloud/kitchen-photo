@@ -6,8 +6,8 @@ android {
         applicationId 'kr.hwangi.photo'
         minSdk 29
         targetSdk 34
-        versionCode 31
-        versionName '9.4'
+        versionCode 32
+        versionName '9.5'
     }
     lint { abortOnError false }
 }
