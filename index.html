@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v40</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v41</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -717,11 +717,7 @@ function showReview(rec){
   }
   const img = ov.querySelector('#rvImg');
   const url = URL.createObjectURL(rec.blob);
-  img.onload = ()=>{
-    const land = img.naturalWidth > img.naturalHeight, portrait = window.innerHeight >= window.innerWidth;
-    if(land && portrait){ img.style.maxWidth='100vh'; img.style.maxHeight='100vw'; img.style.transform='rotate(90deg)'; }
-    else { img.style.maxWidth='100%'; img.style.maxHeight='100%'; img.style.transform='none'; }
-  };
+  img.onload = ()=>{ applyUiRot(true); };
   img.src = url; reviewing = true;
   const close = ()=>{ if(reviewTimer){ clearTimeout(reviewTimer); reviewTimer=null; } ov.style.display='none'; try{ URL.revokeObjectURL(url); }catch(e){} reviewing=false; };
   ov.querySelector('#rvDel').onclick = ()=>{ removePhoto(rec.id); updateCamHead(); toast('\uC0AD\uC81C\uB428'); close(); };
