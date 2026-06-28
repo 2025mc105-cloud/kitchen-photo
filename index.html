@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v37</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v38</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -650,7 +650,7 @@ function pvConfirmDelete(onYes){
   let ov=document.getElementById('pvDelDlg'); if(ov) ov.remove();
   ov=document.createElement('div'); ov.id='pvDelDlg';
   ov.style.cssText='position:fixed;inset:0;background:#000a;z-index:160;display:flex;align-items:center;justify-content:center;';
-  const rot=(zRot===90)?'transform:rotate(90deg);':'';
+  const _ua=(typeof uiOrientAngle==='function')?uiOrientAngle():0; const rot=_ua?('transform:rotate('+_ua+'deg);'):'';
   ov.innerHTML='<div style="'+rot+'background:var(--card);border-radius:14px;padding:20px;width:78%;max-width:320px;text-align:center;box-shadow:0 4px 20px #000a;"><div style="color:var(--txt);font-size:17px;font-weight:bold;margin-bottom:16px;">이 사진을 삭제할까요?</div><div style="display:flex;gap:10px;"><button id="pdNo" style="flex:1;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--card2);color:var(--txt);font-size:16px;font-weight:bold;">취소</button><button id="pdYes" style="flex:1;padding:14px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:16px;font-weight:bold;">삭제</button></div></div>';
   ov.querySelector('#pdNo').onclick=()=>ov.remove();
   ov.querySelector('#pdYes').onclick=()=>{ ov.remove(); onYes(); };
@@ -1044,7 +1044,7 @@ function applyUiRot(force){
       ov.style.transformOrigin='center center';
       ov.style.transform='translate(-50%,-50%) rotate('+ang+'deg)';
     } else {
-      ov.style.width=''; ov.style.height=''; ov.style.left=''; ov.style.top=''; ov.style.right=''; ov.style.bottom='';
+      ov.style.width=''; ov.style.height=''; ov.style.left='0'; ov.style.top='0'; ov.style.right='0'; ov.style.bottom='0';
       ov.style.transform='';
     }
     requestAnimationFrame(pvFit);
