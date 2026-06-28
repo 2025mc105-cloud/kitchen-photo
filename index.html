@@ -188,7 +188,7 @@
   <div class="cambottom">
     <img class="lastth" id="lastTh" alt="">
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
-    <div class="camside" style="transform:rotate(90deg);">
+    <div class="camside" id="camSide" style="transform:rotate(90deg);transform-origin:center center;">
       <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px;white-space:nowrap">👁2초ON</button>
       <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px;white-space:nowrap">✋안정ON</button>
     </div>
@@ -363,7 +363,7 @@ function renderFolder(){
     const tag = curFolder.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번';
     d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
     if(reorderMode && selIds.has(p.id)){ d.style.outline='4px solid var(--acc)'; d.style.outlineOffset='-2px'; const ck=document.createElement('span'); ck.textContent='\u2713'; ck.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:36px;height:36px;line-height:36px;text-align:center;border-radius:18px;background:var(--acc);color:#fff;font-size:20px;font-weight:bold;box-shadow:0 0 0 3px #0008;'; d.appendChild(ck); }
-    d.querySelector('img').onclick = ()=>{ if(reorderMode){ if(selIds.has(p.id)) selIds.delete(p.id); else selIds.add(p.id); renderFolder(); } else { openViewer(p.id, tag); } };
+    d.querySelector('img').onclick = ()=>{ if(reorderMode){ const idx=i; if(selIds.size===0){ selAnchorId=p.id; selIds.add(p.id); } else if(selIds.size===1){ if(selAnchorId===p.id){ selIds.clear(); selAnchorId=null; } else { const aIdx=list.findIndex(x=>x.id===selAnchorId); if(aIdx<0){ selIds.clear(); selAnchorId=p.id; selIds.add(p.id); } else { const a=Math.min(aIdx,idx), b=Math.max(aIdx,idx); selIds.clear(); for(let k=a;k<=b;k++) selIds.add(list[k].id); } } } else { selIds.clear(); selAnchorId=p.id; selIds.add(p.id); } renderFolder(); } else { openViewer(p.id, tag); } };
     if(!reorderMode){
       const del = document.createElement('button'); del.className='del'; del.textContent='✕';
       del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
@@ -371,6 +371,7 @@ function renderFolder(){
     }
     tdiv.appendChild(d);
   });
+  requestAnimationFrame(function(){ try{ var fv=document.getElementById('folderView'); var bb=document.querySelector('#folderView .bottom'); if(fv&&bb) fv.style.paddingBottom=(bb.offsetHeight+28)+'px'; }catch(e){} });
 }
 
 
@@ -389,9 +390,9 @@ function openViewer(id){
 }
 
 /* ───────── 순서 변경 ───────── */
-let reorderMode = false; const selIds = new Set();
+let reorderMode = false; const selIds = new Set(); let selAnchorId = null;
 function toggleReorder(){
-  reorderMode = !reorderMode; selIds.clear(); renderFolder();
+  reorderMode = !reorderMode; selIds.clear(); selAnchorId = null; renderFolder();
 }
 function reorderSel(where){
   if(!selIds.size){ toast('먼저 옮길 사진들을 누르세요'); return; }
@@ -678,6 +679,7 @@ function pvShow(){
   _img.src = thumbURL[p.id];
   ov.querySelector('#pvTag').innerHTML = (FSHORT[pvFid]||'') + '<br>' + pvTagFor(pvFid, pvIdx) + ' (' + (pvIdx+1) + '/' + list.length + ')';
   ov.style.display = 'flex';
+  applyUiRot(true);
 }
 
 /* ───────── 내장 카메라 (연속촬영, HTTPS 필요) ───────── */
@@ -1010,6 +1012,48 @@ function calcRot(w, h){
   if(Math.abs(gAccX) > 5 && Math.abs(gAccX) > Math.abs(gAccY)) return gAccX > 0 ? 90 : 270; // 회전잠금: 센서 판정
   return 0;
 }
+
+/* UI auto orientation: camera side buttons + photo viewer */
+function uiOrientAngle(){
+  var ang=(screen.orientation&&screen.orientation.angle)||0;
+  if(ang===90||ang===270) return ang;
+  if(Math.abs(gAccX)>5 && Math.abs(gAccX)>Math.abs(gAccY)) return gAccX>0?90:270;
+  return 0;
+}
+function pvFit(){
+  var ov=document.getElementById('photoViewer'); if(!ov) return;
+  var _img=ov.querySelector('#pvImg'); if(!_img||!_img.naturalWidth) return;
+  var stage=_img.parentElement; var sw=stage.clientWidth, sh=stage.clientHeight;
+  var iw=_img.naturalWidth, ih=_img.naturalHeight;
+  if(iw>ih && sh>sw){ var w=Math.min(sh, sw*(iw/ih)); var h=w*ih/iw;
+    _img.style.maxWidth='none'; _img.style.maxHeight='none'; _img.style.width=w+'px'; _img.style.height=h+'px'; zRot=90; }
+  else { _img.style.width=''; _img.style.height=''; _img.style.maxWidth='100%'; _img.style.maxHeight='100%'; zRot=0; }
+  zScale=1; zTx=0; zTy=0; applyZoom();
+}
+var _lastUiAng=-1;
+function applyUiRot(force){
+  var ang=uiOrientAngle();
+  if(!force && ang===_lastUiAng) return;
+  _lastUiAng=ang;
+  var cs=document.getElementById('camSide'); if(cs) cs.style.transform='rotate('+ang+'deg)';
+  var ov=document.getElementById('photoViewer');
+  if(ov && ov.style.display!=='none'){
+    if(ang===90||ang===270){
+      ov.style.width=window.innerHeight+'px'; ov.style.height=window.innerWidth+'px';
+      ov.style.left='50%'; ov.style.top='50%'; ov.style.right='auto'; ov.style.bottom='auto';
+      ov.style.transformOrigin='center center';
+      ov.style.transform='translate(-50%,-50%) rotate('+ang+'deg)';
+    } else {
+      ov.style.width=''; ov.style.height=''; ov.style.left=''; ov.style.top=''; ov.style.right=''; ov.style.bottom='';
+      ov.style.transform='';
+    }
+    requestAnimationFrame(pvFit);
+  }
+}
+setInterval(function(){ applyUiRot(false); }, 350);
+window.addEventListener('orientationchange', function(){ setTimeout(function(){ applyUiRot(true); }, 250); });
+window.addEventListener('resize', function(){ applyUiRot(true); });
+
 function rotateFrame(src, w, h, ang){
   const c = document.createElement('canvas');
   c.width = h; c.height = w;
