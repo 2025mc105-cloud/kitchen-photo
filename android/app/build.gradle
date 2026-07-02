@@ -1,16 +1,1 @@
-plugins { id 'com.android.application' version '8.5.2' }
-android {
-    namespace 'kr.hwangi.photo'
-    compileSdk 34
-    defaultConfig {
-        applicationId 'kr.hwangi.photo'
-        minSdk 29
-        targetSdk 34
-        versionCode 39
-        versionName '10.2'
-    }
-    lint { abortOnError false }
-}
-dependencies {
-    implementation 'androidx.webkit:webkit:1.8.0'
-}
+plugins { id 'com.android.application' version '8.5.2' }android {    namespace 'kr.hwangi.photo'    compileSdk 34    defaultConfig {        applicationId 'kr.hwangi.photo'        minSdk 29        targetSdk 34        versionCode 40        versionName '10.2'    }    lint { abortOnError false }}dependencies {    implementation 'androidx.webkit:webkit:1.8.0'}
