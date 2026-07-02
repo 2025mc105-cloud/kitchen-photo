@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v44</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v45</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -120,7 +120,7 @@
     </div>
     <div class="row">
       <div style="flex:1"><label>점검종류 (선택)</label><input type="text" id="schType" list="schTypeList" placeholder="성능점검 / 사전점검 / 실사"></div>
-      <datalist id="schTypeList"><option value="성능점검"></option><option value="사전점검"></option><option value="실사"></option><option value="정기점검"></option></datalist>
+      <datalist id="schTypeList"><option value="성능점검"></option><option value="사전점검"></option><option value="실사"></option><option value="정기점검"></option><option value="월점검"></option></datalist>
     </div>
     <div class="row">
       <div style="flex:1"><label>월</label><input type="number" id="schM"></div>
@@ -494,7 +494,7 @@ function quickDelete(id){
 function removeThumbCell(id){
   const im = document.querySelector('#thumbs img[data-pid="'+id+'"]');
   if(im){ const cell = im.closest('.th'); if(cell) cell.remove(); }
-  document.querySelectorAll('#thumbs .th .no').forEach((el,k)=>{ el.textContent=(k+1)+'번'; });
+  document.querySelectorAll('#thumbs .th .no').forEach((el,k)=>{ el.textContent = pvTagFor(curFolder, k); });
   const fc=$('fCnt'); if(fc && curFolder) fc.textContent = folderPhotos(curFolder).length;
 }
 function showUndoBar(){
@@ -618,7 +618,7 @@ async function exportFolder(){
 function makeThumbCell(p, i){
   if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.thumb || p.blob);
   const d = document.createElement('div'); d.className='th';
-  const tag = (i+1)+'번';
+  const tag = pvTagFor(curFolder, i);
   d.innerHTML = '<img src="'+thumbURL[p.id]+'" data-pid="'+p.id+'" loading="lazy" decoding="async"><span class="no">'+tag+'</span>';
   if((reorderMode||delMode) && selIds.has(p.id)){
     d.style.outline='4px solid '+(delMode?'#ef4444':'var(--acc)'); d.style.outlineOffset='-2px';
@@ -631,7 +631,7 @@ function makeThumbCell(p, i){
     if(reorderMode || delMode){ selTap(p.id); return; }
     finalizePendingUndo();
     const lst=folderPhotos(curFolder); const k=lst.findIndex(x=>x.id===p.id);
-    openViewer(p.id, (k+1)+'번');
+    openViewer(p.id, pvTagFor(curFolder, k));
   };
   if(!reorderMode && !delMode){
     const del = document.createElement('button'); del.className='del'; del.textContent='✕';
@@ -652,6 +652,20 @@ function renderFolder(){
   tdiv.innerHTML='';
   list.forEach((p,i)=>tdiv.appendChild(makeThumbCell(p,i)));
   requestAnimationFrame(function(){ try{ var fv=document.getElementById('folderView'); var bb=document.querySelector('#folderView .bottom'); if(fv&&bb) fv.style.paddingBottom=(bb.offsetHeight+28)+'px'; }catch(e){} });
+}
+
+/* ───────── 사진 크게 보기 (썸네일 클릭 → 원본, 좌우 스와이프 이전/다음) ───────── */
+function pvTagFor(fid, i){ return fid.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번'; }
+let pvFid = null, pvIdx = 0;
+let zScale=1, zTx=0, zTy=0, zRot=0;
+function applyZoom(){ const im=document.getElementById('pvImg'); if(im) im.style.transform='translate('+zTx+'px,'+zTy+'px) scale('+zScale+') rotate('+zRot+'deg)'; }
+function openViewer(id){
+  const list = folderPhotos(curFolder);
+  const idx = list.findIndex(x=>x.id===id);
+  if(idx < 0) return;
+  pvFid = curFolder; pvIdx = idx;
+  pvBuild();
+  pvShow();
 }
 
 let reorderMode = false; const selIds = new Set(); let selAnchorId = null;
