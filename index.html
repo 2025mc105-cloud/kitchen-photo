@@ -58,8 +58,8 @@
   .hint{font-size:13px; color:var(--warn); margin-bottom:10px; line-height:1.5;}
   .gal{width:100%; padding:12px; font-size:14px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--sub); margin-bottom:12px;}
   .thumbs{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
-  .th{position:relative; border-radius:10px; overflow:hidden; border:1px solid var(--line); aspect-ratio:4/3; background:#000;}
-  .th img{width:100%; height:100%; object-fit:cover;}
+  .th{position:relative; border-radius:10px; overflow:hidden; border:1px solid var(--line); aspect-ratio:4/3; background:#000; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;}
+  .th img{width:100%; height:100%; object-fit:cover; -webkit-user-drag:none;}
   .th .no{position:absolute; left:4px; top:4px; background:#000a; padding:2px 7px; border-radius:6px; font-size:13px; font-weight:bold;}
   .th .del{position:absolute; right:4px; top:4px; background:var(--del); border:none; color:#fff; width:30px; height:30px; border-radius:8px; font-size:15px;}
   .th .blur{position:absolute; left:4px; bottom:4px; background:var(--del); color:#fff; padding:2px 6px; border-radius:6px; font-size:12px; font-weight:bold;}
@@ -109,7 +109,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v42</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v43</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -127,6 +127,10 @@
     <button id="gpsBtn" onclick="gpsFill(false)" style="width:100%;margin-top:4px;padding:15px;font-size:18px;font-weight:bold;border:none;border-radius:10px;background:#0ea5e9;color:#fff;">📍 GPS로 학교 자동입력</button>
   <div id="gpsPick" style="display:none;margin-top:8px;"></div>
   <div class="foldername" id="folderPreview"></div>
+  <div id="fsRow" style="display:flex;gap:6px;margin-top:6px;">
+    <button onclick="fsInfo()" style="flex:0 0 auto;padding:9px 10px;border:none;border-radius:8px;background:#374151;color:#fff;font-size:13px;font-weight:bold;">📁저장위치</button>
+    <button onclick="exportFolder()" style="flex:1;padding:9px 6px;border:none;border-radius:8px;background:#9333ea;color:#fff;font-size:13px;font-weight:bold;">📂 폰 폴더로 최종 저장 (번호순)</button>
+  </div>
   </div>
 
   <div id="homeStatus" style="font-size:13px;color:var(--sub);margin-bottom:6px;"></div>
@@ -153,6 +157,14 @@
   <div class="hint" id="fHint"></div>
   <div class="thumbs" id="thumbs"></div>
   <div class="bottom" style="flex-direction:column;gap:8px;">
+    <div id="delBar" style="display:none;width:100%;">
+      <div style="text-align:center;color:#fbbf24;font-size:12px;font-weight:bold;margin-bottom:6px;">길게 누른 사진 → 다른 사진을 누르면 그 사이 전체 선택</div>
+      <div style="display:flex;gap:6px;">
+        <button onclick="delSelected()" style="flex:2;padding:13px 2px;font-size:15px;font-weight:bold;border:none;border-radius:8px;background:#ef4444;color:#fff;">🗑 <span id="delCnt">0</span>장 삭제</button>
+        <button onclick="selAll()" style="flex:1;padding:13px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#374151;color:#fff;">전체선택</button>
+        <button onclick="exitDelMode()" style="flex:1;padding:13px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#6b7280;color:#fff;">취소</button>
+      </div>
+    </div>
     <div id="reorderBar" style="width:100%;">
       <button id="reorderToggle" onclick="toggleReorder()" style="width:100%;padding:9px;font-size:14px;font-weight:bold;border:none;border-radius:10px;background:#374151;color:#fff;">↕ 순서변경 (꺼짐)</button>
       <div id="reorderBtns" style="display:none;margin-top:8px;">
@@ -246,6 +258,8 @@ function openDB(){
 }
 function idbPut(rec){ if(!idbOK) return; try{ db.transaction('photos','readwrite').objectStore('photos').put(rec); }catch(e){} }
 function idbDel(id){ if(!idbOK) return; try{ db.transaction('photos','readwrite').objectStore('photos').delete(id); }catch(e){} }
+function idbDelMany(ids){ if(!idbOK||!ids.length) return; try{ const st=db.transaction('photos','readwrite').objectStore('photos'); ids.forEach(id=>st.delete(id)); }catch(e){} }
+function idbPutMany(recs){ if(!idbOK||!recs.length) return; try{ const st=db.transaction('photos','readwrite').objectStore('photos'); recs.forEach(r=>st.put(r)); }catch(e){} }
 function idbClear(){ if(!idbOK) return; try{ db.transaction('photos','readwrite').objectStore('photos').clear(); }catch(e){} }
 function idbLoadAll(){
   return new Promise(res=>{
@@ -336,6 +350,8 @@ function renderHome(){
 
 /* ───────── 폴더 화면 ───────── */
 function openFolder(fid){
+  finalizePendingUndo();
+  if(delMode){ delMode=false; selIds.clear(); selAnchorId=null; }
   curFolder = fid;
   $('homeView').style.display='none';
   $('folderView').style.display='block';
@@ -345,53 +361,296 @@ function openFolder(fid){
   window.scrollTo(0,0);
 }
 function goHome(){
+  finalizePendingUndo();
+  if(delMode){ delMode=false; selIds.clear(); selAnchorId=null; }
   curFolder = null;
   $('folderView').style.display='none';
   $('homeView').style.display='block';
   renderHome();
 }
 function folderPhotos(fid){ return photos.filter(p=>p.fid===fid).sort((a,b)=>a.seq-b.seq); }
+/* ═════════ v53: 썸네일 엔진 · 다중선택 삭제 · 즉시삭제+실행취소 · 실시간 폰 폴더 저장 ═════════ */
+const THUMB_W = 360;
+async function makeThumb(blob){
+  try{
+    const bmp = await createImageBitmap(blob);
+    const sc = Math.min(1, THUMB_W/bmp.width);
+    const w = Math.max(1,Math.round(bmp.width*sc)), h = Math.max(1,Math.round(bmp.height*sc));
+    const c = document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').drawImage(bmp,0,0,w,h);
+    try{ bmp.close(); }catch(e){}
+    return await new Promise(r=>c.toBlob(b=>r(b),'image/jpeg',0.72));
+  }catch(e){ return null; }
+}
+function setThumb(rec, tb){
+  if(!tb) return;
+  rec.thumb = tb; idbPut(rec);
+  if(thumbURL[rec.id]){ try{URL.revokeObjectURL(thumbURL[rec.id]);}catch(e){} delete thumbURL[rec.id]; }
+  const im = document.querySelector('#thumbs img[data-pid="'+rec.id+'"]');
+  if(im){ thumbURL[rec.id]=URL.createObjectURL(tb); im.src = thumbURL[rec.id]; }
+}
+let thumbQueue = [], thumbBusy = false;
+function queueThumb(rec){ thumbQueue.push(rec); pumpThumbs(); }
+async function pumpThumbs(){
+  if(thumbBusy) return; thumbBusy = true;
+  while(thumbQueue.length){
+    const r = thumbQueue.shift();
+    try{ if(!r.thumb && photos.indexOf(r)>=0){ const tb = await makeThumb(r.blob); if(photos.indexOf(r)>=0) setThumb(r, tb); } }catch(e){}
+    await new Promise(x=>setTimeout(x,80));
+  }
+  thumbBusy = false;
+}
+
+function confirmBox(msg, onYes){
+  var old=document.getElementById('cfmBox'); if(old) old.remove();
+  var ov=document.createElement('div'); ov.id='cfmBox';
+  ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#0009;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML='<div style="background:#1f2937;border-radius:14px;padding:20px;width:82%;max-width:330px;text-align:center;box-shadow:0 4px 20px #000a;"><div id="cfmMsg" style="color:#fff;font-size:16px;font-weight:bold;margin-bottom:16px;white-space:pre-line;"></div><div style="display:flex;gap:10px;"><button id="cfmNo" style="flex:1;padding:14px;border:1px solid #4b5563;border-radius:10px;background:#111827;color:#fff;font-size:16px;font-weight:bold;">취소</button><button id="cfmYes" style="flex:1;padding:14px;border:none;border-radius:10px;background:#ef4444;color:#fff;font-size:16px;font-weight:bold;">확인</button></div></div>';
+  ov.querySelector('#cfmMsg').textContent=msg;
+  ov.querySelector('#cfmNo').onclick=function(){ ov.remove(); };
+  ov.querySelector('#cfmYes').onclick=function(){ ov.remove(); if(onYes) onYes(); };
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+/* ── 삭제 다중선택 모드 ── */
+let delMode = false, lpFired = false;
+function selTap(id){
+  const list = folderPhotos(curFolder);
+  const idx = list.findIndex(x=>x.id===id); if(idx<0) return;
+  if(selIds.size===0){ selAnchorId=id; selIds.add(id); }
+  else if(selIds.size===1){
+    if(selAnchorId===id){ selIds.clear(); selAnchorId=null; }
+    else{
+      const aIdx=list.findIndex(x=>x.id===selAnchorId);
+      if(aIdx<0){ selIds.clear(); selAnchorId=id; selIds.add(id); }
+      else{ const a=Math.min(aIdx,idx), b=Math.max(aIdx,idx); selIds.clear(); for(let k=a;k<=b;k++) selIds.add(list[k].id); }
+    }
+  } else { selIds.clear(); selAnchorId=id; selIds.add(id); }
+  renderFolder();
+}
+function enterDelMode(id){
+  if(reorderMode || delMode) return;
+  finalizePendingUndo();
+  delMode = true; selIds.clear(); selAnchorId = null;
+  if(id){ selAnchorId = id; selIds.add(id); }
+  try{ if(navigator.vibrate) navigator.vibrate(35); }catch(e){}
+  renderFolder();
+  toast('삭제할 사진 선택 중 · 다른 사진을 누르면 사이가 모두 선택됩니다');
+}
+function exitDelMode(){ delMode = false; selIds.clear(); selAnchorId = null; renderFolder(); }
+function selAll(){ const list=folderPhotos(curFolder); selIds.clear(); selAnchorId=null; list.forEach(p=>selIds.add(p.id)); renderFolder(); }
+function updateDelBar(){
+  const bar=$('delBar'); if(!bar) return;
+  bar.style.display = delMode?'block':'none';
+  const rb=$('reorderBar'); if(rb) rb.style.display = delMode?'none':'block';
+  const c=$('delCnt'); if(c) c.textContent = selIds.size;
+}
+function delSelected(){
+  const n = selIds.size;
+  if(!n){ toast('먼저 지울 사진을 누르세요'); return; }
+  confirmBox('선택한 '+n+'장을 삭제할까요?', ()=>{
+    const ids = new Set(selIds);
+    const recs = photos.filter(p=>ids.has(p.id));
+    photos = photos.filter(p=>!ids.has(p.id));
+    recs.forEach(r=>{ if(thumbURL[r.id]){ try{URL.revokeObjectURL(thumbURL[r.id]);}catch(e){} delete thumbURL[r.id]; } });
+    idbDelMany(recs.map(r=>r.id));
+    recs.forEach(r=>fsRemove(r));
+    delMode=false; selIds.clear(); selAnchorId=null;
+    renderFolder();
+    toast('🗑 '+n+'장 삭제 완료');
+  });
+}
+function attachLongPress(d, id){
+  let t=null, sx=0, sy=0;
+  const begin=(x,y)=>{ if(reorderMode||delMode) return; sx=x; sy=y;
+    t=setTimeout(()=>{ t=null; lpFired=true; enterDelMode(id); }, 500); };
+  const cancel=()=>{ if(t){ clearTimeout(t); t=null; } };
+  d.addEventListener('touchstart', e=>{ if(e.touches.length!==1){ cancel(); return; } const c=e.touches[0]; begin(c.clientX,c.clientY); }, {passive:true});
+  d.addEventListener('touchmove', e=>{ if(!t) return; const c=e.touches[0]; if(Math.abs(c.clientX-sx)>12||Math.abs(c.clientY-sy)>12) cancel(); }, {passive:true});
+  d.addEventListener('touchend', cancel, {passive:true});
+  d.addEventListener('touchcancel', cancel, {passive:true});
+  d.addEventListener('mousedown', e=>begin(e.clientX,e.clientY));
+  d.addEventListener('mouseup', cancel);
+  d.addEventListener('mouseleave', cancel);
+}
+
+/* ── 즉시삭제 + 실행취소 ── */
+let undoStack = [], undoTimer = null;
+function quickDelete(id){
+  const idx = photos.findIndex(p=>p.id===id); if(idx<0) return;
+  const rec = photos[idx];
+  photos.splice(idx,1);
+  undoStack.push(rec);
+  removeThumbCell(id);
+  showUndoBar();
+}
+function removeThumbCell(id){
+  const im = document.querySelector('#thumbs img[data-pid="'+id+'"]');
+  if(im){ const cell = im.closest('.th'); if(cell) cell.remove(); }
+  document.querySelectorAll('#thumbs .th .no').forEach((el,k)=>{ el.textContent=(k+1)+'번'; });
+  const fc=$('fCnt'); if(fc && curFolder) fc.textContent = folderPhotos(curFolder).length;
+}
+function showUndoBar(){
+  if(undoTimer) clearTimeout(undoTimer);
+  let bar = document.getElementById('undoBar');
+  if(!bar){
+    bar = document.createElement('div'); bar.id='undoBar';
+    bar.style.cssText='position:fixed;left:12px;right:12px;z-index:9990;background:#111827f2;border:1px solid #4b5563;border-radius:12px;padding:11px 14px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 16px #000c;';
+    bar.innerHTML='<span id="undoMsg" style="flex:1;color:#fff;font-size:15px;font-weight:bold;"></span><button id="undoBtn" style="flex:0 0 auto;padding:10px 16px;border:none;border-radius:10px;background:#f59e0b;color:#231a00;font-size:15px;font-weight:bold;">실행취소</button>';
+    document.body.appendChild(bar);
+    bar.querySelector('#undoBtn').onclick = undoDelete;
+  }
+  try{ const bb=document.querySelector('#folderView .bottom'); bar.style.bottom = (bb? bb.offsetHeight+14 : 16)+'px'; }catch(e){ bar.style.bottom='16px'; }
+  bar.style.display='flex';
+  const m=document.getElementById('undoMsg'); if(m) m.textContent = undoStack.length+'장 삭제됨';
+  undoTimer = setTimeout(finalizeDeletes, 8000);
+}
+function hideUndoBar(){ const b=document.getElementById('undoBar'); if(b) b.style.display='none'; }
+function undoDelete(){
+  if(undoTimer){ clearTimeout(undoTimer); undoTimer=null; }
+  undoStack.forEach(r=>photos.push(r));
+  undoStack = [];
+  hideUndoBar(); renderFolder(); toast('복구되었습니다');
+}
+function finalizeDeletes(){
+  if(undoTimer){ clearTimeout(undoTimer); undoTimer=null; }
+  if(!undoStack.length){ hideUndoBar(); return; }
+  const recs = undoStack; undoStack = [];
+  hideUndoBar();
+  recs.forEach(r=>{ if(thumbURL[r.id]){ try{URL.revokeObjectURL(thumbURL[r.id]);}catch(e){} delete thumbURL[r.id]; } });
+  idbDelMany(recs.map(r=>r.id));
+  recs.forEach(r=>fsRemove(r));
+}
+function finalizePendingUndo(){ if(undoStack.length) finalizeDeletes(); }
+
+/* ── 실시간 폰 폴더 저장 (APK 브리지) ── */
+const FS_ROOT = '주방점검사진';
+function fsOn(){ return !!(window.HwangiBridge && HwangiBridge.fopen); }
+function fsSan(s){ return String(s||'').replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,' ').trim() || '무제'; }
+function fsProjectName(){ return fsSan(schoolFolderName()); }
+function fsDirOf(fid){ if(fid==='doc') return '점검기록지'; if(fid==='base') return '기본 사진'; const f = FOLDERS.find(x=>x.id===fid); return fsSan(f? (f.short+' 사진') : String(fid)); }
+let fsChain = Promise.resolve();
+function fsEnqueue(fn){ fsChain = fsChain.then(fn).catch(()=>{}); return fsChain; }
+let fsAckResolve = null;
+window.__fsAck = function(){ if(fsAckResolve){ const r=fsAckResolve; fsAckResolve=null; r(); } };
+function fsWaitAck(){ return new Promise(res=>{ fsAckResolve=res; setTimeout(()=>{ if(fsAckResolve){ fsAckResolve=null; res(); } }, 12000); }); }
+async function fsWriteBlob(relPath, name, blob){
+  if(!fsOn()) return;
+  try{
+    HwangiBridge.fdelete(relPath, name);
+    HwangiBridge.fopen(relPath, name);
+    const CH = 2*1024*1024;
+    for(let p=0; p<blob.size; p+=CH){
+      const buf = new Uint8Array(await blob.slice(p, Math.min(p+CH, blob.size)).arrayBuffer());
+      let bin=''; const SUB=32768;
+      for(let q=0; q<buf.length; q+=SUB) bin += String.fromCharCode.apply(null, buf.subarray(q, Math.min(q+SUB, buf.length)));
+      HwangiBridge.fwrite(btoa(bin));
+    }
+    HwangiBridge.fclose();
+    await fsWaitAck();
+  }catch(e){}
+}
+function fsSave(rec){
+  if(!fsOn() || !rec || !rec.blob) return;
+  try{
+    const d = new Date(rec.ts||Date.now());
+    const name = 'T'+pad(d.getHours(),2)+pad(d.getMinutes(),2)+pad(d.getSeconds(),2)+'_'+(rec.seq||0)+extOf(rec.blob);
+    rec.fsp = fsProjectName()+'/'+fsDirOf(rec.fid); rec.fsn = name;
+    idbPut(rec);
+    fsEnqueue(()=>fsWriteBlob(rec.fsp, name, rec.blob));
+  }catch(e){}
+}
+function fsRemove(rec){
+  if(!fsOn() || !rec || !rec.fsp || !rec.fsn) return;
+  const rp=rec.fsp, rn=rec.fsn;
+  fsEnqueue(()=>{ try{ HwangiBridge.fdelete(rp, rn); }catch(e){} });
+}
+function fsResave(rec){ if(!fsOn()) return; fsRemove(rec); rec.fsp=null; rec.fsn=null; fsSave(rec); }
+function fsInfo(){
+  if(!fsOn()){ toast('폰 폴더 저장은 APK 앱에서만 동작합니다'); return; }
+  toast('📁 사진(Pictures) › '+FS_ROOT+' › '+fsProjectName()+' 폴더에 실시간 저장 중');
+}
+let fsBusy = false;
+window.__fsDone = function(ok, fail){
+  fsBusy = false;
+  const pr=$('prog'); if(pr) pr.style.display='none';
+  toast(fail? ('📂 저장 '+ok+'건 · 실패 '+fail+'건') : ('📂 폰 폴더 저장 완료 ('+ok+'건)'));
+};
+async function exportFolder(){
+  if(typeof pendingShots !== 'undefined' && Object.keys(pendingShots).length){ toast('사진 저장 마무리 중… 2초 후 다시 눌러주세요'); return; }
+  if(!fsOn()){ alert('이 기능은 APK 앱에서만 사용할 수 있습니다.'); return; }
+  if(fsBusy){ toast('이미 저장 중입니다'); return; }
+  finalizePendingUndo();
+  if(!photos.length){ alert('저장된 사진이 없습니다.'); return; }
+  if(!$('schName').value.trim()){ alert('학교명을 입력해 주세요.'); $('schName').focus(); return; }
+  const proj = fsProjectName();
+  const jobs = [];
+  const docName = ($('schName').value.trim()||'학교명미입력').replace(/[\\/:*?"<>|]/g,'').trim() || '학교명미입력';
+  const used = new Set();
+  const uq = (rel,n)=>{ let key=rel+'|'+n; if(!used.has(key)){ used.add(key); return n; } let i=1,p,k2; const dot=n.lastIndexOf('.'); do{ p=n.slice(0,dot)+'_'+(i++)+n.slice(dot); k2=rel+'|'+p; }while(used.has(k2)); used.add(k2); return p; };
+  folderPhotos('doc').forEach(p=>jobs.push({rel: proj, name: uq(proj, docName+extOf(p.blob)), blob: p.blob}));
+  folderPhotos('base').forEach(p=>jobs.push({rel: proj+'/기본 사진', name: uq(proj+'/기본 사진', tsName(p.ts)+extOf(p.blob)), blob: p.blob}));
+  for(let i=1;i<=15;i++){ folderPhotos('h'+i).forEach((p,idx)=>jobs.push({rel: proj+'/후드'+i+' 사진', name: pad(idx+1,2)+extOf(p.blob), blob: p.blob})); }
+  if(!jobs.length){ toast('내보낼 사진이 없습니다'); return; }
+  confirmBox('사진 '+photos.length+'장을 최종 번호(01, 02…)로\n폰의 사진 폴더에 저장할까요?\n\n(촬영시각 이름의 임시 파일은 정리됩니다)', async ()=>{
+    fsBusy = true;
+    $('prog').style.display='flex'; $('progMsg').textContent='📂 폰 폴더로 저장 중… ('+jobs.length+'건)';
+    $('pfill').style.width='0%';
+    if(HwangiBridge.fbegin) HwangiBridge.fbegin();
+    let done = 0;
+    for(const j of jobs){
+      await fsEnqueue(()=>fsWriteBlob(j.rel, j.name, j.blob));
+      done++; $('pfill').style.width = Math.round(100*done/jobs.length)+'%';
+    }
+    photos.forEach(p=>{ if(p.fsn && p.fsn.charAt(0)==='T'){ fsRemove(p); p.fsp=null; p.fsn=null; } });
+    idbPutMany(photos);
+    if(HwangiBridge.fnotify) HwangiBridge.fnotify(''); else window.__fsDone(done, 0);
+  });
+}
+
+function makeThumbCell(p, i){
+  if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.thumb || p.blob);
+  const d = document.createElement('div'); d.className='th';
+  const tag = (i+1)+'번';
+  d.innerHTML = '<img src="'+thumbURL[p.id]+'" data-pid="'+p.id+'" loading="lazy" decoding="async"><span class="no">'+tag+'</span>';
+  if((reorderMode||delMode) && selIds.has(p.id)){
+    d.style.outline='4px solid '+(delMode?'#ef4444':'var(--acc)'); d.style.outlineOffset='-2px';
+    const ck=document.createElement('span'); ck.textContent='✓';
+    ck.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:36px;height:36px;line-height:36px;text-align:center;border-radius:18px;background:'+(delMode?'#ef4444':'var(--acc)')+';color:#fff;font-size:20px;font-weight:bold;box-shadow:0 0 0 3px #0008;';
+    d.appendChild(ck);
+  }
+  d.querySelector('img').onclick = ()=>{
+    if(lpFired){ lpFired=false; return; }
+    if(reorderMode || delMode){ selTap(p.id); return; }
+    finalizePendingUndo();
+    const lst=folderPhotos(curFolder); const k=lst.findIndex(x=>x.id===p.id);
+    openViewer(p.id, (k+1)+'번');
+  };
+  if(!reorderMode && !delMode){
+    const del = document.createElement('button'); del.className='del'; del.textContent='✕';
+    del.onclick = (e)=>{ e.stopPropagation(); quickDelete(p.id); };
+    d.appendChild(del);
+  }
+  attachLongPress(d, p.id);
+  return d;
+}
 function renderFolder(){
   const list = folderPhotos(curFolder);
   $('fCnt').textContent = list.length;
-  const _rb=$('reorderBtns'); if(_rb) _rb.style.display = reorderMode?'block':'none';
+  const _rb=$('reorderBtns'); if(_rb) _rb.style.display = (reorderMode&&!delMode)?'block':'none';
   const _rt=$('reorderToggle'); if(_rt){ _rt.textContent = reorderMode?('↕ 순서변경 켜짐 · '+selIds.size+'장 선택 (누르면 끄기)'):'↕ 순서변경 (꺼짐)'; _rt.style.background = reorderMode?'#16a34a':'#374151'; }
-  const tdiv = $('thumbs'); tdiv.innerHTML='';
-  list.forEach((p,i)=>{
-    if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
-    const d = document.createElement('div'); d.className='th';
-    const tag = curFolder.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번';
-    d.innerHTML = '<img src="'+thumbURL[p.id]+'"><span class="no">'+tag+'</span>';
-    if(reorderMode && selIds.has(p.id)){ d.style.outline='4px solid var(--acc)'; d.style.outlineOffset='-2px'; const ck=document.createElement('span'); ck.textContent='\u2713'; ck.style.cssText='position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:36px;height:36px;line-height:36px;text-align:center;border-radius:18px;background:var(--acc);color:#fff;font-size:20px;font-weight:bold;box-shadow:0 0 0 3px #0008;'; d.appendChild(ck); }
-    d.querySelector('img').onclick = ()=>{ if(reorderMode){ const idx=i; if(selIds.size===0){ selAnchorId=p.id; selIds.add(p.id); } else if(selIds.size===1){ if(selAnchorId===p.id){ selIds.clear(); selAnchorId=null; } else { const aIdx=list.findIndex(x=>x.id===selAnchorId); if(aIdx<0){ selIds.clear(); selAnchorId=p.id; selIds.add(p.id); } else { const a=Math.min(aIdx,idx), b=Math.max(aIdx,idx); selIds.clear(); for(let k=a;k<=b;k++) selIds.add(list[k].id); } } } else { selIds.clear(); selAnchorId=p.id; selIds.add(p.id); } renderFolder(); } else { openViewer(p.id, tag); } };
-    if(!reorderMode){
-      const del = document.createElement('button'); del.className='del'; del.textContent='✕';
-      del.onclick = ()=>{ if(confirm(tag+' 사진을 삭제할까요?')) removePhoto(p.id); };
-      d.appendChild(del);
-    }
-    tdiv.appendChild(d);
-  });
+  updateDelBar();
+  const tdiv = $('thumbs');
+  if(!tdiv._ctxOff){ tdiv._ctxOff=true; tdiv.addEventListener('contextmenu', e=>e.preventDefault()); }
+  tdiv.innerHTML='';
+  list.forEach((p,i)=>tdiv.appendChild(makeThumbCell(p,i)));
   requestAnimationFrame(function(){ try{ var fv=document.getElementById('folderView'); var bb=document.querySelector('#folderView .bottom'); if(fv&&bb) fv.style.paddingBottom=(bb.offsetHeight+28)+'px'; }catch(e){} });
 }
 
-
-/* ───────── 사진 크게 보기 (썸네일 클릭 → 원본, 좌우 스와이프 이전/다음) ───────── */
-function pvTagFor(fid, i){ return fid.startsWith('h') ? String(i+1).padStart(2,'0') : (i+1)+'번'; }
-let pvFid = null, pvIdx = 0;
-let zScale=1, zTx=0, zTy=0, zRot=0;
-function applyZoom(){ const im=document.getElementById('pvImg'); if(im) im.style.transform='translate('+zTx+'px,'+zTy+'px) scale('+zScale+') rotate('+zRot+'deg)'; }
-function openViewer(id){
-  const list = folderPhotos(curFolder);
-  const idx = list.findIndex(x=>x.id===id);
-  if(idx < 0) return;
-  pvFid = curFolder; pvIdx = idx;
-  pvBuild();
-  pvShow();
-}
-
-/* ───────── 순서 변경 ───────── */
 let reorderMode = false; const selIds = new Set(); let selAnchorId = null;
 function toggleReorder(){
+  finalizePendingUndo(); delMode = false;
   reorderMode = !reorderMode; selIds.clear(); selAnchorId = null; renderFolder();
 }
 function reorderSel(where){
@@ -411,7 +670,7 @@ function reorderSel(where){
   if((where==='up'||where==='down') && at===anchor){ toast('이미 끝입니다'); return; }
   const newList = [...others.slice(0,at), ...selected, ...others.slice(at)];
   const pool = list.map(p=>p.seq).slice().sort((a,b)=>a-b);
-  newList.forEach((p,k)=>{ p.seq = pool[k]; idbPut(p); });
+  newList.forEach((p,k)=>{ p.seq = pool[k]; }); idbPutMany(newList);
   renderFolder();
 }
 
@@ -447,7 +706,7 @@ function doMove(targetFid){
   if(!selected.length) return;
   var tgt = folderPhotos(targetFid);
   var base = tgt.length ? Math.max.apply(null, tgt.map(function(p){return p.seq;})) : 0;
-  selected.forEach(function(p){ base+=1; p.fid=targetFid; p.seq=base; idbPut(p); });
+  selected.forEach(function(p){ base+=1; p.fid=targetFid; p.seq=base; }); idbPutMany(selected); selected.forEach(function(p){ fsResave(p); });
   selIds.clear();
   renderFolder();
   if(typeof renderHome==='function') renderHome();
@@ -498,7 +757,7 @@ function warpDoc(img, src){
 }
 function dcReplace(id, blob){
   const p=(photos||[]).find(x=>x.id===id); if(!p||!blob) return;
-  p.blob=blob; idbPut(p);
+  p.blob=blob; p.thumb=null; idbPut(p); queueThumb(p); fsResave(p);
   if(thumbURL[id]){ URL.revokeObjectURL(thumbURL[id]); delete thumbURL[id]; }
   toast('문서 보정 완료');
   renderFolder();
@@ -1142,6 +1401,7 @@ function finishShot(id, blob){
   if(!blob){ toast('1장 저장 실패'); updateCamHead(); return; }
   const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid:meta.fid, ts:meta.ts, seq:meta.seq, blob};
   photos.push(rec); idbPut(rec);
+  queueThumb(rec); fsSave(rec);
   if($('camView').style.display==='flex' && curFolder===meta.fid) $('lastTh').src = URL.createObjectURL(blob);
   updateCamHead();
   if($('folderView').style.display!=='none' && $('camView').style.display!=='flex' && curFolder===meta.fid) renderFolder();
@@ -1463,12 +1723,15 @@ function addPhoto(fid, blob, ts){
   const rec = {id: Date.now()+'_'+Math.random().toString(36).slice(2,8), fid, ts, seq: seqCounter++, blob};
   photos.push(rec);
   idbPut(rec);
+  queueThumb(rec); fsSave(rec);
 }
 function removePhoto(id){
-  photos = photos.filter(p=>p.id!==id);
-  if(thumbURL[id]){ URL.revokeObjectURL(thumbURL[id]); delete thumbURL[id]; }
-  idbDel(id);
-  renderFolder();
+  const idx = photos.findIndex(p=>p.id===id); if(idx<0) return;
+  const rec = photos[idx];
+  photos.splice(idx,1);
+  if(thumbURL[id]){ try{URL.revokeObjectURL(thumbURL[id]);}catch(e){} delete thumbURL[id]; }
+  idbDel(id); fsRemove(rec);
+  if($('folderView').style.display!=='none') removeThumbCell(id);
 }
 function resetAll(){
   const total = photos.length;
@@ -1648,11 +1911,13 @@ window.addEventListener('beforeunload', e=>{
     recs.sort((a,b)=>a.seq-b.seq);
     photos = recs;
     seqCounter = recs.length ? Math.max(...recs.map(r=>r.seq||0))+1 : 1;
+    setTimeout(()=>{ try{ photos.forEach(p=>{ if(!p.thumb) queueThumb(p); }); }catch(e){} }, 1500);
   }else{
     $('storeBanner').style.display='block';
   }
   renderHome();
   _attachHomeSwipe();
+  try{ if(!fsOn()){ const fr=document.getElementById('fsRow'); if(fr) fr.style.display='none'; } }catch(e){}
 })();
 </script>
 </body>

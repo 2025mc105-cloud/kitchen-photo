@@ -1,5 +1,5 @@
 /* 후드사진 앱 — 서비스 워커 (오프라인 동작 + 자동 업데이트) */
-const CACHE = 'hwangi-v36';
+const CACHE = 'hwangi-v37';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
