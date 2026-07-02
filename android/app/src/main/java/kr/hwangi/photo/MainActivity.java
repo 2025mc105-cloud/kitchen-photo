@@ -237,6 +237,63 @@ public class MainActivity extends Activity {
     class Bridge {
         private OutputStream os;
         private Uri lastUri;
+        /* ── v43: 실시간 폰 폴더 저장 (Pictures/주방점검사진/…) ── */
+        private final java.util.concurrent.ExecutorService fsExec = java.util.concurrent.Executors.newSingleThreadExecutor();
+        private OutputStream fsOs; private Uri fsUri;
+        private int fsOk = 0, fsFail = 0;
+        private String fsRel(String relPath){
+            String p = (relPath == null ? "" : relPath).replace("\\", "/").replace("..", "_").trim();
+            while (p.startsWith("/")) p = p.substring(1);
+            while (p.endsWith("/")) p = p.substring(0, p.length()-1);
+            return Environment.DIRECTORY_PICTURES + "/주방점검사진" + (p.isEmpty() ? "" : "/" + p) + "/";
+        }
+        @JavascriptInterface public void fbegin(){
+            fsExec.execute(new Runnable(){ public void run(){ fsOk = 0; fsFail = 0; } });
+        }
+        @JavascriptInterface public void fopen(final String relPath, final String name){
+            fsExec.execute(new Runnable(){ public void run(){
+                try{
+                    if (fsOs != null){ try{ fsOs.close(); }catch(Exception e){} fsOs = null; }
+                    ContentResolver cr = getContentResolver();
+                    ContentValues v = new ContentValues();
+                    v.put(MediaStore.Images.Media.DISPLAY_NAME, name);
+                    v.put(MediaStore.Images.Media.MIME_TYPE, name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
+                    v.put(MediaStore.Images.Media.RELATIVE_PATH, fsRel(relPath));
+                    fsUri = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+                    fsOs = (fsUri != null) ? cr.openOutputStream(fsUri) : null;
+                    if (fsOs == null) fsFail++;
+                }catch(Exception e){ fsOs = null; fsUri = null; fsFail++; }
+            } });
+        }
+        @JavascriptInterface public void fwrite(final String b64){
+            fsExec.execute(new Runnable(){ public void run(){
+                try{ if (fsOs != null) fsOs.write(Base64.decode(b64, Base64.NO_WRAP)); }
+                catch(Exception e){ try{ if (fsOs != null) fsOs.close(); }catch(Exception e2){} fsOs = null; fsFail++; }
+            } });
+        }
+        @JavascriptInterface public void fclose(){
+            fsExec.execute(new Runnable(){ public void run(){
+                try{ if (fsOs != null){ fsOs.close(); fsOk++; } }catch(Exception e){ fsFail++; }
+                fsOs = null; fsUri = null;
+                runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript("window.__fsAck&&window.__fsAck();", null); } });
+            } });
+        }
+        @JavascriptInterface public void fdelete(final String relPath, final String name){
+            fsExec.execute(new Runnable(){ public void run(){
+                try{
+                    getContentResolver().delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        MediaStore.Images.Media.RELATIVE_PATH + "=? AND " + MediaStore.Images.Media.DISPLAY_NAME + "=?",
+                        new String[]{ fsRel(relPath), name });
+                }catch(Exception e){}
+            } });
+        }
+        @JavascriptInterface public void fnotify(final String tag){
+            fsExec.execute(new Runnable(){ public void run(){
+                final int ok = fsOk, fail = fsFail;
+                runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript("window.__fsDone&&window.__fsDone(" + ok + "," + fail + ");", null); } });
+            } });
+        }
+
         @JavascriptInterface public void start(String name){
             try{
                 ContentResolver cr = getContentResolver();
