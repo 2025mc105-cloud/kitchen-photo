@@ -30,6 +30,9 @@
     border:1px solid var(--line); background:var(--card2); color:var(--txt);
   }
   .foldername{font-size:14px; color:var(--ok); margin-top:8px; word-break:break-all;}
+  #homeView .row{margin-bottom:6px;}
+  #homeView input[type=text],#homeView input[type=number]{padding:7px; font-size:15px;}
+  #homeView .foldername{margin-top:6px; font-size:13px;}
   .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .fbtn{
     position:relative; background:var(--card); border:1px solid var(--line); color:var(--txt);
@@ -110,7 +113,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v47</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v48</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -131,16 +134,15 @@
     </div>
   <button id="fsSessBtn" onclick="fsSessToggle()" style="width:100%;margin-top:6px;padding:11px 8px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:14px;font-weight:bold;line-height:1.3;">▶ 사진저장 시작 (폴더 고정)</button>
   <div id="gpsPick" style="display:none;margin-top:8px;"></div>
-  <div class="foldername" id="folderPreview"></div>
-  <div id="fsPathRow" onclick="fsOpenFolder()" style="margin-top:6px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px dashed #4b5563;font-size:12.5px;line-height:1.5;word-break:break-all;"></div>
+  <div class="foldername" id="folderPreview" style="display:none"></div>
+  <div id="fsPathRow" onclick="fsOpenFolder()" style="margin-top:6px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px dashed #4b5563;font-size:13.5px;line-height:1.4;word-break:break-all;text-align:center;"></div>
   </div>
 
   <div id="homeStatus" style="font-size:13px;color:var(--sub);margin-bottom:6px;"></div>
-  <div style="font-size:11px;color:var(--sub);opacity:.75;margin:-2px 0 6px;">↔ 왼→오 밀기: 점검일정 · 오→왼 밀기: 재방문 체크</div>
   <div class="grid" id="folderGrid"></div>
 
   <div class="bottom">
-    <button class="btn red" style="flex:0 0 28%" onclick="resetAll()">전체삭제</button>
+    <button class="btn red" onclick="resetAll()">전체삭제</button>
     <button class="btn green" onclick="zipMenu()">ZIP</button>
   </div>
 </div>
@@ -600,15 +602,10 @@ function fsPathUpdate(){
   const el = document.getElementById('fsPathRow'); if(!el) return;
   if(!fsOn()){ el.style.display='none'; return; }
   const name = fsSession || fsSan(schoolFolderName());
-  el.innerHTML='';
-  const l1=document.createElement('div'); l1.style.cssText='color:#9ca3af;';
-  l1.textContent='📁 내장메모리 › 0.점검사진 › '+FS_ROOT+' ›';
-  const l2=document.createElement('div');
-  l2.style.cssText = fsSession? 'color:#22c55e;font-weight:bold;' : 'color:#cbd5e1;';
-  l2.textContent = name + (fsSession? '  ← 저장 중' : '  (시작하면 이 이름으로 고정)');
-  const l3=document.createElement('div'); l3.style.cssText='color:#64748b;font-size:11px;margin-top:2px;';
-  l3.textContent='누르면 이 폴더가 열립니다';
-  el.appendChild(l1); el.appendChild(l2); el.appendChild(l3);
+  el.textContent = '📁 ' + name + (fsSession? ' ← 저장 중' : '');
+  const noName = !$('schName').value.trim();
+  el.style.color = noName ? '#22c55e' : '#ffffff';
+  el.style.fontWeight = fsSession ? 'bold' : 'normal';
 }
 function fsOpenFolder(){
   if(!fsOn() || !window.HwangiBridge || !HwangiBridge.fexplore) return;
