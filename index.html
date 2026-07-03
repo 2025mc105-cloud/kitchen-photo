@@ -48,6 +48,7 @@
     display:flex; gap:8px; padding:10px 12px; max-width:584px; margin:0 auto;
   }
   .btn{flex:1; padding:14px 8px; font-size:16px; border:none; border-radius:10px; cursor:pointer; color:#fff; font-weight:bold;}
+  .bottom .btn{padding:7px 5px; font-size:13px; border-radius:8px;}
   .btn.blue{background:var(--acc);} .btn.green{background:var(--ok); color:#06250f;}
   .btn.gray{background:#374151;} .btn.red{background:var(--del);} .btn.warn{background:var(--warn); color:#3b2300;}
   /* 폴더 화면 */
@@ -109,33 +110,29 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v46</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v47</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
   <div class="card">
-    <div class="row">
-      <div style="flex:0 0 30%"><label>번호</label><input type="text" id="schNum" placeholder="27"></div>
-      <div style="flex:1"><label>학교명</label><input type="text" id="schName" placeholder="오금초등학교"></div>
+    <div class="row" style="align-items:center">
+      <div style="display:flex;align-items:center;gap:4px;flex:0 0 auto"><label style="margin:0;white-space:nowrap">번호</label><input type="text" id="schNum" placeholder="27" style="width:64px"></div>
+      <div style="display:flex;align-items:center;gap:4px;flex:1"><label style="margin:0;white-space:nowrap">학교명</label><input type="text" id="schName" placeholder="오금초등학교" style="flex:1;min-width:0"><button id="gpsBtn" onclick="gpsFill(false)" style="flex:0 0 auto;padding:6px 9px;border:none;border-radius:8px;background:#0ea5e9;color:#fff;font-weight:bold;font-size:15px;">📍</button></div>
     </div>
-    <div class="row">
-      <div style="flex:1"><label>점검종류 (선택)</label><input type="text" id="schType" list="schTypeList" placeholder="월점검 / 실사 / 사전점검 / 성능점검"></div>
+    <div class="row" style="align-items:center">
+      <div style="display:flex;align-items:center;gap:4px;flex:1"><label style="margin:0;white-space:nowrap">점검종류</label><input type="text" id="schType" list="schTypeList" placeholder="(선택) 월점검 / 실사 / 사전점검 / 성능점검" style="flex:1;min-width:0"></div>
       <datalist id="schTypeList"><option value="월점검"></option><option value="실사"></option><option value="사전점검"></option><option value="성능점검"></option></datalist>
     </div>
-    <div class="row">
-      <div style="flex:1"><label>월</label><input type="number" id="schM"></div>
-      <div style="flex:1"><label>일</label><input type="number" id="schD"></div>
-      <div style="flex:1"><label>시</label><input type="number" id="schH"></div>
-      <div style="flex:1"><label>분</label><input type="number" id="schMin"></div>
+    <div class="row" style="flex-wrap:nowrap;align-items:center">
+      <div style="flex:1;display:flex;align-items:center;gap:3px"><input type="number" id="schM" style="flex:1;min-width:0"><label style="margin:0">월</label></div>
+      <div style="flex:1;display:flex;align-items:center;gap:3px"><input type="number" id="schD" style="flex:1;min-width:0"><label style="margin:0">일</label></div>
+      <div style="flex:1;display:flex;align-items:center;gap:3px"><input type="number" id="schH" style="flex:1;min-width:0"><label style="margin:0">시</label></div>
+      <div style="flex:1;display:flex;align-items:center;gap:3px"><input type="number" id="schMin" style="flex:1;min-width:0"><label style="margin:0">분</label></div>
     </div>
-    <button id="gpsBtn" onclick="gpsFill(false)" style="width:100%;margin-top:4px;padding:9px;font-size:15px;font-weight:bold;border:none;border-radius:10px;background:#0ea5e9;color:#fff;">📍 GPS로 학교 자동입력</button>
   <button id="fsSessBtn" onclick="fsSessToggle()" style="width:100%;margin-top:6px;padding:11px 8px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-size:14px;font-weight:bold;line-height:1.3;">▶ 사진저장 시작 (폴더 고정)</button>
   <div id="gpsPick" style="display:none;margin-top:8px;"></div>
   <div class="foldername" id="folderPreview"></div>
-  <div id="fsRow" style="display:flex;gap:6px;margin-top:6px;">
-    <button onclick="fsInfo()" style="flex:0 0 auto;padding:9px 10px;border:none;border-radius:8px;background:#374151;color:#fff;font-size:13px;font-weight:bold;">📁저장위치</button>
-    <button onclick="exportFolder()" style="flex:1;padding:9px 6px;border:none;border-radius:8px;background:#9333ea;color:#fff;font-size:13px;font-weight:bold;">📂 폰 폴더로 최종 저장 (번호순)</button>
-  </div>
+  <div id="fsPathRow" onclick="fsOpenFolder()" style="margin-top:6px;padding:8px 10px;border-radius:8px;background:#0f172a;border:1px dashed #4b5563;font-size:12.5px;line-height:1.5;word-break:break-all;"></div>
   </div>
 
   <div id="homeStatus" style="font-size:13px;color:var(--sub);margin-bottom:6px;"></div>
@@ -144,8 +141,7 @@
 
   <div class="bottom">
     <button class="btn red" style="flex:0 0 28%" onclick="resetAll()">전체삭제</button>
-    <button class="btn warn" style="flex:0 0 24%" onclick="exportZip(true)">공유</button>
-    <button class="btn green" onclick="exportZip(false)">ZIP 내보내기</button>
+    <button class="btn green" onclick="zipMenu()">ZIP</button>
   </div>
 </div>
 
@@ -539,12 +535,13 @@ function fsSessUpdate(){
   const b = document.getElementById('fsSessBtn'); if(!b) return;
   if(!fsOn()){ b.style.display='none'; return; }
   if(fsSession){
-    b.textContent = '■ 저장 중: ' + fsSession + ' (누르면 종료)';
+    b.innerHTML = '■ 저장 중: ' + fsSession + '<br><span style="font-size:12px;font-weight:normal;opacity:.9">누르면 종료</span>';
     b.style.background = '#16a34a';
   } else {
     b.textContent = '▶ 사진저장 시작 (폴더 고정)';
     b.style.background = '#2563eb';
   }
+  try{ fsPathUpdate(); }catch(e){}
 }
 function fsSessStart(){
   if(!$('schName').value.trim()){ toast('먼저 이름을 입력하거나 GPS로 채워주세요'); try{ $('schName').focus(); }catch(e){} return; }
@@ -555,10 +552,18 @@ function fsSessStart(){
 function fsSessClear(){ fsSession = null; fsSessPersist(); fsSessUpdate(); }
 function fsSessToggle(){
   if(!fsOn()){ toast('폰 폴더 저장은 APK 앱에서만 동작합니다'); return; }
-  if(!fsSession){ fsSessStart(); return; }
+  if(!fsPermOk()){ fsPermAsk(); return; }
+  if(!fsSession){ fsSessStartFlow(); return; }
   choiceBox('사진저장을 종료할까요?\n\n📁 ' + fsSession, [
-    {label:'최종 번호(01,02…)로 정리 후 종료', bg:'#9333ea', fn:function(){ exportFolder(); fsSessClear(); }},
-    {label:'그냥 종료 (임시 이름 그대로 둠)', bg:'#6b7280', fn:function(){ fsSessClear(); toast('저장 종료됨'); }},
+    {label:'최종 번호(01,02…)로 정리 후 종료', bg:'#9333ea', fn:function(){
+      if(!photos.length){ fsSessClear(); toast('사진이 없습니다 · 저장 종료'); return; }
+      fsDoneHook = function(ok, fail){
+        if(fail === 0){ wipePhotos(); toast('✅ 정리 완료 ('+ok+'건) · 다음 점검을 위해 앱을 비웠습니다'); }
+        else { toast('⚠ 실패 '+fail+'건 · 앱 사진은 지우지 않았습니다. 다시 시도하세요'); }
+        fsSessClear();
+      };
+      exportFolder(true);
+    }},
     {label:'계속 저장 (취소)', bg:'#374151', fn:null}
   ]);
 }
@@ -583,17 +588,68 @@ function choiceBox(msg, opts){
   document.body.appendChild(ov);
 }
 
+/* ── v57/v47: 권한·경로표시·폴더열기·자동비움·ZIP통합 ── */
+function fsPermOk(){ try{ return !!(window.HwangiBridge && HwangiBridge.fperm && HwangiBridge.fperm()); }catch(e){ return false; } }
+function fsPermAsk(){
+  choiceBox('사진을 폰의 "0.점검사진" 폴더에\n저장하려면 "모든 파일 접근" 허용이\n1번 필요합니다.\n\n[설정 열기] → 스위치 켜기 → 뒤로가기', [
+    {label:'설정 열기', bg:'#2563eb', fn:function(){ try{ HwangiBridge.freq(); }catch(e){} }},
+    {label:'나중에', bg:'#374151', fn:null}
+  ]);
+}
+function fsPathUpdate(){
+  const el = document.getElementById('fsPathRow'); if(!el) return;
+  if(!fsOn()){ el.style.display='none'; return; }
+  const name = fsSession || fsSan(schoolFolderName());
+  el.innerHTML='';
+  const l1=document.createElement('div'); l1.style.cssText='color:#9ca3af;';
+  l1.textContent='📁 내장메모리 › 0.점검사진 › '+FS_ROOT+' ›';
+  const l2=document.createElement('div');
+  l2.style.cssText = fsSession? 'color:#22c55e;font-weight:bold;' : 'color:#cbd5e1;';
+  l2.textContent = name + (fsSession? '  ← 저장 중' : '  (시작하면 이 이름으로 고정)');
+  const l3=document.createElement('div'); l3.style.cssText='color:#64748b;font-size:11px;margin-top:2px;';
+  l3.textContent='누르면 이 폴더가 열립니다';
+  el.appendChild(l1); el.appendChild(l2); el.appendChild(l3);
+}
+function fsOpenFolder(){
+  if(!fsOn() || !window.HwangiBridge || !HwangiBridge.fexplore) return;
+  if(!fsPermOk()){ fsPermAsk(); return; }
+  try{ HwangiBridge.fexplore(fsSession || ''); }catch(e){}
+}
+function wipePhotos(){
+  try{ photos.forEach(p=>{ if(thumbURL[p.id]){ try{URL.revokeObjectURL(thumbURL[p.id]);}catch(e){} delete thumbURL[p.id]; } }); }catch(e){}
+  photos = []; undoStack = []; selIds.clear(); selAnchorId = null; delMode = false; reorderMode = false;
+  try{ idbClear(); }catch(e){}
+  seqCounter = 1;
+  renderHome();
+}
+function fsSessStartFlow(){
+  if(photos.length){
+    choiceBox('앱에 기존 사진 '+photos.length+'장이 남아 있습니다.\n(지난 점검 사진이면 지우고 시작을 권장)', [
+      {label:'기존 사진 지우고 새로 시작', bg:'#ef4444', fn:function(){ wipePhotos(); fsSessStart(); }},
+      {label:'그대로 두고 시작', bg:'#374151', fn:function(){ fsSessStart(); }}
+    ]);
+  } else fsSessStart();
+}
+function zipMenu(){
+  choiceBox('ZIP 파일을 어떻게 할까요?', [
+    {label:'카톡·드라이브 등으로 공유', bg:'#f59e0b', fn:function(){ exportZip(true); }},
+    {label:'다운로드 폴더에 저장', bg:'#16a34a', fn:function(){ exportZip(false); }},
+    {label:'취소', bg:'#374151', fn:null}
+  ]);
+}
+let fsDoneHook = null;
+
 /* ── 실시간 폰 폴더 저장 (APK 브리지) ── */
-const FS_ROOT = '주방점검사진';
+const FS_ROOT = '급식실점검사진';
 function fsOn(){ return !!(window.HwangiBridge && HwangiBridge.fopen); }
 function fsSan(s){ return String(s||'').replace(/[\\/:*?"<>|]/g,'_').replace(/\s+/g,' ').trim() || '무제'; }
 function fsProjectName(){ return fsSession || fsSan(schoolFolderName()); }
 function fsDirOf(fid){ if(fid==='doc') return '점검기록지'; if(fid==='base') return '기본 사진'; const f = FOLDERS.find(x=>x.id===fid); return fsSan(f? (f.short+' 사진') : String(fid)); }
 let fsChain = Promise.resolve();
 function fsEnqueue(fn){ fsChain = fsChain.then(fn).catch(()=>{}); return fsChain; }
-let fsAckResolve = null;
-window.__fsAck = function(){ if(fsAckResolve){ const r=fsAckResolve; fsAckResolve=null; r(); } };
-function fsWaitAck(){ return new Promise(res=>{ fsAckResolve=res; setTimeout(()=>{ if(fsAckResolve){ fsAckResolve=null; res(); } }, 12000); }); }
+let fsAckMap = {}, fsAckSeq = 0;
+window.__fsAck = function(tk){ const r = fsAckMap[tk]; if(r){ delete fsAckMap[tk]; try{ r(); }catch(e){} } };
+function fsAckWait(tk){ return new Promise(res=>{ fsAckMap[tk] = res; setTimeout(()=>{ if(fsAckMap[tk]){ delete fsAckMap[tk]; res(); } }, 6000); }); }
 async function fsWriteBlob(relPath, name, blob){
   if(!fsOn()) return;
   try{
@@ -606,12 +662,15 @@ async function fsWriteBlob(relPath, name, blob){
       for(let q=0; q<buf.length; q+=SUB) bin += String.fromCharCode.apply(null, buf.subarray(q, Math.min(q+SUB, buf.length)));
       HwangiBridge.fwrite(btoa(bin));
     }
-    HwangiBridge.fclose();
-    await fsWaitAck();
+    const tk = 'k'+(++fsAckSeq);
+    const ackP = fsAckWait(tk);
+    HwangiBridge.fclose(tk);
+    await ackP;
   }catch(e){}
 }
 function fsSave(rec){
   if(!fsOn() || !rec || !rec.blob) return;
+  if(!fsPermOk()){ if(!window.__fsPermWarned){ window.__fsPermWarned = true; fsPermAsk(); } return; }
   if(!fsSession){ fsSession = fsSan(schoolFolderName()); fsSessPersist(); fsSessUpdate(); }
   try{
     const d = new Date(rec.ts||Date.now());
@@ -629,17 +688,19 @@ function fsRemove(rec){
 function fsResave(rec){ if(!fsOn()) return; fsRemove(rec); rec.fsp=null; rec.fsn=null; fsSave(rec); }
 function fsInfo(){
   if(!fsOn()){ toast('폰 폴더 저장은 APK 앱에서만 동작합니다'); return; }
-  toast('📁 사진(Pictures) › '+FS_ROOT+' › '+fsProjectName()+' 폴더에 실시간 저장 중');
+  toast('📁 내장메모리 › 0.점검사진 › '+FS_ROOT+' › '+fsProjectName()+' 에 저장 중');
 }
 let fsBusy = false;
 window.__fsDone = function(ok, fail){
   fsBusy = false;
   const pr=$('prog'); if(pr) pr.style.display='none';
   toast(fail? ('📂 저장 '+ok+'건 · 실패 '+fail+'건') : ('📂 폰 폴더 저장 완료 ('+ok+'건)'));
+  if(fsDoneHook){ const h = fsDoneHook; fsDoneHook = null; try{ h(ok, fail); }catch(e){} }
 };
-async function exportFolder(){
+async function exportFolder(skipConfirm){
   if(typeof pendingShots !== 'undefined' && Object.keys(pendingShots).length){ toast('사진 저장 마무리 중… 2초 후 다시 눌러주세요'); return; }
   if(!fsOn()){ alert('이 기능은 APK 앱에서만 사용할 수 있습니다.'); return; }
+  if(!fsPermOk()){ fsPermAsk(); return; }
   if(fsBusy){ toast('이미 저장 중입니다'); return; }
   finalizePendingUndo();
   if(!photos.length){ alert('저장된 사진이 없습니다.'); return; }
@@ -653,20 +714,22 @@ async function exportFolder(){
   folderPhotos('base').forEach(p=>jobs.push({rel: proj+'/기본 사진', name: uq(proj+'/기본 사진', tsName(p.ts)+extOf(p.blob)), blob: p.blob}));
   for(let i=1;i<=15;i++){ folderPhotos('h'+i).forEach((p,idx)=>jobs.push({rel: proj+'/후드'+i+' 사진', name: pad(idx+1,2)+extOf(p.blob), blob: p.blob})); }
   if(!jobs.length){ toast('내보낼 사진이 없습니다'); return; }
-  confirmBox('사진 '+photos.length+'장을 최종 번호(01, 02…)로\n폰의 사진 폴더에 저장할까요?\n\n(촬영시각 이름의 임시 파일은 정리됩니다)', async ()=>{
+  const __run = async ()=>{
     fsBusy = true;
-    $('prog').style.display='flex'; $('progMsg').textContent='📂 폰 폴더로 저장 중… ('+jobs.length+'건)';
+    $('prog').style.display='flex'; $('progMsg').textContent='📂 폰 폴더로 저장 중… 0/'+jobs.length+'건';
     $('pfill').style.width='0%';
     if(HwangiBridge.fbegin) HwangiBridge.fbegin();
     let done = 0;
     for(const j of jobs){
       await fsEnqueue(()=>fsWriteBlob(j.rel, j.name, j.blob));
-      done++; $('pfill').style.width = Math.round(100*done/jobs.length)+'%';
+      done++; $('pfill').style.width = Math.round(100*done/jobs.length)+'%'; $('progMsg').textContent='📂 폰 폴더로 저장 중… '+done+'/'+jobs.length+'건';
     }
     photos.forEach(p=>{ if(p.fsn && p.fsn.charAt(0)==='T'){ fsRemove(p); p.fsp=null; p.fsn=null; } });
     idbPutMany(photos);
     if(HwangiBridge.fnotify) HwangiBridge.fnotify(''); else window.__fsDone(done, 0);
-  });
+  };
+  if(skipConfirm === true){ __run(); return; }
+  confirmBox('사진 '+photos.length+'장을 최종 번호(01, 02…)로\n폰 폴더에 저장할까요?', __run);
 }
 
 function makeThumbCell(p, i){
@@ -1991,8 +2054,9 @@ window.addEventListener('beforeunload', e=>{
   }
   renderHome();
   _attachHomeSwipe();
-  try{ if(!fsOn()){ const fr=document.getElementById('fsRow'); if(fr) fr.style.display='none'; } }catch(e){}
   try{ fsSessUpdate(); }catch(e){}
+  try{ ['schNum','schName','schType','schM','schD','schH','schMin'].forEach(id=>{ const e=$(id); if(e) e.addEventListener('input', fsPathUpdate); }); }catch(e){}
+  try{ if(fsOn() && !fsPermOk()) setTimeout(fsPermAsk, 900); }catch(e){}
 })();
 </script>
 </body>
