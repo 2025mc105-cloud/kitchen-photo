@@ -113,7 +113,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v51</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v52</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -142,6 +142,7 @@
   <div class="grid" id="folderGrid"></div>
 
   <div class="bottom">
+    <button class="btn" style="background:#3b82f6;font-size:13px;white-space:nowrap;" onclick="homeImport()">📥 사진불러오기</button>
     <button class="btn red" onclick="resetAll()">전체삭제</button>
     <button class="btn green" onclick="zipMenu()">ZIP</button>
   </div>
@@ -1824,6 +1825,18 @@ document.addEventListener('visibilitychange', ()=>{
 
 /* ───────── 기본 카메라(예비) / 갤러리 ───────── */
 function openGallery(){ $('galInput').value=''; $('galInput').click(); }
+function homeImport(){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:#000a;z-index:200;display:flex;align-items:center;justify-content:center;';
+  let h='<div style="background:var(--card);border-radius:14px;padding:16px;width:92%;max-width:440px;max-height:82vh;overflow:auto;"><div style="color:var(--txt);font-weight:bold;font-size:16px;margin-bottom:12px;text-align:center;">📥 사진을 넣을 폴더를 선택하세요</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+  FOLDERS.forEach(function(f){ h+='<button data-fid="'+f.id+'" style="padding:13px 6px;border:1px solid var(--line);border-radius:10px;background:var(--card2);color:var(--txt);font-size:14px;font-weight:bold;">'+(f.short||f.label)+'</button>'; });
+  h+='</div><button id="hiCancel" style="margin-top:12px;width:100%;padding:13px;border:none;border-radius:10px;background:#374151;color:#fff;font-size:15px;font-weight:bold;">취소</button></div>';
+  ov.innerHTML=h;
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  ov.querySelector('#hiCancel').onclick=function(){ ov.remove(); };
+  ov.querySelectorAll('button[data-fid]').forEach(function(b){ b.onclick=function(){ var fid=b.getAttribute('data-fid'); ov.remove(); openFolder(fid); setTimeout(openGallery,250); }; });
+  document.body.appendChild(ov);
+}
 let phoneCamLoop = false;
 $('camInput').addEventListener('change', e=>{
   const f = e.target.files && e.target.files[0];
