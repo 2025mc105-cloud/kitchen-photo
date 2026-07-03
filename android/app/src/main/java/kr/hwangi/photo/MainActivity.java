@@ -237,15 +237,60 @@ public class MainActivity extends Activity {
     class Bridge {
         private OutputStream os;
         private Uri lastUri;
-        /* ── v43: 실시간 폰 폴더 저장 (Pictures/주방점검사진/…) ── */
+        /* ── v47: 실시간 폰 폴더 저장 (내부저장소/0.점검사진/급식실점검사진/…) ── */
         private final java.util.concurrent.ExecutorService fsExec = java.util.concurrent.Executors.newSingleThreadExecutor();
-        private OutputStream fsOs; private Uri fsUri;
+        private java.io.OutputStream fsOs; private java.io.File fsFile;
         private int fsOk = 0, fsFail = 0;
-        private String fsRel(String relPath){
-            String p = (relPath == null ? "" : relPath).replace("\\", "/").replace("..", "_").trim();
+        private String fsSanP(String s){
+            String p = (s == null ? "" : s).replace("\\", "/").replace("..", "_").trim();
             while (p.startsWith("/")) p = p.substring(1);
             while (p.endsWith("/")) p = p.substring(0, p.length()-1);
-            return Environment.DIRECTORY_PICTURES + "/주방점검사진" + (p.isEmpty() ? "" : "/" + p) + "/";
+            return p;
+        }
+        private java.io.File fsDir(String relPath){
+            String p = fsSanP(relPath);
+            java.io.File base = new java.io.File(Environment.getExternalStorageDirectory(), "0.점검사진/급식실점검사진");
+            return p.isEmpty() ? base : new java.io.File(base, p);
+        }
+        @JavascriptInterface public boolean fperm(){
+            try{ return Environment.isExternalStorageManager(); }catch(Exception e){ return false; }
+        }
+        @JavascriptInterface public void freq(){
+            runOnUiThread(new Runnable(){ public void run(){
+                try{
+                    android.content.Intent i = new android.content.Intent(android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    i.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(i);
+                }catch(Exception e){
+                    try{ startActivity(new android.content.Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)); }catch(Exception e2){}
+                }
+            } });
+        }
+        @JavascriptInterface public void fexplore(final String relPath){
+            runOnUiThread(new Runnable(){ public void run(){
+                java.io.File dir = fsDir(relPath);
+                try{ dir.mkdirs(); }catch(Exception e){}
+                try{
+                    android.content.Intent it = new android.content.Intent("samsung.myfiles.intent.action.LAUNCH_MY_FILES");
+                    it.putExtra("samsung.myfiles.intent.extra.START_PATH", dir.getAbsolutePath());
+                    it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(it);
+                    return;
+                }catch(Exception e){}
+                try{
+                    String doc = "primary:" + dir.getAbsolutePath().replaceFirst("^/storage/emulated/0/", "");
+                    Uri u = android.provider.DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", doc);
+                    android.content.Intent it2 = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+                    it2.setDataAndType(u, "vnd.android.document/directory");
+                    it2.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(it2);
+                    return;
+                }catch(Exception e){}
+                try{
+                    android.content.Intent it3 = getPackageManager().getLaunchIntentForPackage("com.sec.android.app.myfiles");
+                    if (it3 != null) startActivity(it3);
+                }catch(Exception e){}
+            } });
         }
         @JavascriptInterface public void fbegin(){
             fsExec.execute(new Runnable(){ public void run(){ fsOk = 0; fsFail = 0; } });
@@ -254,15 +299,11 @@ public class MainActivity extends Activity {
             fsExec.execute(new Runnable(){ public void run(){
                 try{
                     if (fsOs != null){ try{ fsOs.close(); }catch(Exception e){} fsOs = null; }
-                    ContentResolver cr = getContentResolver();
-                    ContentValues v = new ContentValues();
-                    v.put(MediaStore.Images.Media.DISPLAY_NAME, name);
-                    v.put(MediaStore.Images.Media.MIME_TYPE, name.toLowerCase().endsWith(".png") ? "image/png" : "image/jpeg");
-                    v.put(MediaStore.Images.Media.RELATIVE_PATH, fsRel(relPath));
-                    fsUri = cr.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
-                    fsOs = (fsUri != null) ? cr.openOutputStream(fsUri) : null;
-                    if (fsOs == null) fsFail++;
-                }catch(Exception e){ fsOs = null; fsUri = null; fsFail++; }
+                    java.io.File dir = fsDir(relPath);
+                    dir.mkdirs();
+                    fsFile = new java.io.File(dir, fsSanP(name).replace("/", "_"));
+                    fsOs = new java.io.FileOutputStream(fsFile);
+                }catch(Exception e){ fsOs = null; fsFile = null; fsFail++; }
             } });
         }
         @JavascriptInterface public void fwrite(final String b64){
@@ -271,19 +312,27 @@ public class MainActivity extends Activity {
                 catch(Exception e){ try{ if (fsOs != null) fsOs.close(); }catch(Exception e2){} fsOs = null; fsFail++; }
             } });
         }
-        @JavascriptInterface public void fclose(){
+        @JavascriptInterface public void fclose(final String tk){
             fsExec.execute(new Runnable(){ public void run(){
-                try{ if (fsOs != null){ fsOs.close(); fsOk++; } }catch(Exception e){ fsFail++; }
-                fsOs = null; fsUri = null;
-                runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript("window.__fsAck&&window.__fsAck();", null); } });
+                try{
+                    if (fsOs != null){ fsOs.close(); fsOk++;
+                        if (fsFile != null){ try{ android.media.MediaScannerConnection.scanFile(MainActivity.this, new String[]{ fsFile.getAbsolutePath() }, null, null); }catch(Exception e){} }
+                    }
+                }catch(Exception e){ fsFail++; }
+                fsOs = null; fsFile = null;
+                final String t = (tk == null ? "" : tk.replaceAll("[^A-Za-z0-9_]", ""));
+                runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript("window.__fsAck&&window.__fsAck('" + t + "');", null); } });
             } });
         }
         @JavascriptInterface public void fdelete(final String relPath, final String name){
             fsExec.execute(new Runnable(){ public void run(){
                 try{
-                    getContentResolver().delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        MediaStore.Images.Media.RELATIVE_PATH + "=? AND " + MediaStore.Images.Media.DISPLAY_NAME + "=?",
-                        new String[]{ fsRel(relPath), name });
+                    java.io.File f = new java.io.File(fsDir(relPath), fsSanP(name).replace("/", "_"));
+                    if (f.exists()){
+                        String path = f.getAbsolutePath();
+                        f.delete();
+                        try{ android.media.MediaScannerConnection.scanFile(MainActivity.this, new String[]{ path }, null, null); }catch(Exception e){}
+                    }
                 }catch(Exception e){}
             } });
         }
@@ -293,7 +342,6 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript("window.__fsDone&&window.__fsDone(" + ok + "," + fail + ");", null); } });
             } });
         }
-
         @JavascriptInterface public void start(String name){
             try{
                 ContentResolver cr = getContentResolver();
