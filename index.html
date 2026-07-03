@@ -113,7 +113,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v50</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v51</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -1067,7 +1067,6 @@ function pvShow(){
   if(pvIdx >= list.length) pvIdx = list.length - 1;
   if(pvIdx < 0) pvIdx = 0;
   const p = list[pvIdx];
-  if(!thumbURL[p.id]) thumbURL[p.id] = URL.createObjectURL(p.blob);
   const _img = ov.querySelector('#pvImg'); _img.style.display='';
   _img.onload = ()=>{
     const stage=_img.parentElement, sw=stage.clientWidth, sh=stage.clientHeight, iw=_img.naturalWidth, ih=_img.naturalHeight;
@@ -1075,7 +1074,7 @@ function pvShow(){
     else { _img.style.width=''; _img.style.height=''; _img.style.maxWidth='100%'; _img.style.maxHeight='100%'; zRot=0; }
     zScale=1; zTx=0; zTy=0; applyZoom();
   };
-  _img.src = thumbURL[p.id];
+  if(_img._u){ try{URL.revokeObjectURL(_img._u);}catch(e){} } _img._u = URL.createObjectURL(p.blob); _img.src = _img._u;
   ov.querySelector('#pvTag').innerHTML = (FSHORT[pvFid]||'') + '<br>' + pvTagFor(pvFid, pvIdx) + ' (' + (pvIdx+1) + '/' + list.length + ')';
   ov.style.display = 'flex';
   applyUiRot(true);
