@@ -93,6 +93,8 @@
   .shutter{width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#ffffff44;}
   .shutter:active{background:#fff;}
   .camside{width:54px; display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .camui{position:absolute; inset:0; z-index:82; pointer-events:none;}
+  .camui>*{pointer-events:auto;}
   .flashfx{position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:90; transition:opacity .12s;}
   /* 오버레이/진행/토스트 */
   .overlay{position:fixed; inset:0; background:#000d; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; z-index:50;}
@@ -113,7 +115,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v53</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v54</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -144,7 +146,7 @@
   <div class="bottom">
     <button class="btn" style="background:#3b82f6;font-size:13px;white-space:nowrap;" onclick="homeImport()">📥 사진불러오기</button>
     <button class="btn red" onclick="resetAll()">전체삭제</button>
-    <button class="btn green" onclick="zipMenu()">ZIP</button>
+    <button class="btn green" onclick="lsMenu()">📡 노트북</button>
   </div>
 </div>
 
@@ -192,6 +194,7 @@
 <!-- ───────── 내장 카메라 (연속촬영) ───────── -->
 <div class="camview" id="camView">
   <video id="camVideo" playsinline autoplay muted></video>
+  <div class="camui" id="camUI">
   <div class="camtop">
     <button class="cbtn" onclick="closeCam()">✕ 닫기</button>
     <button class="cbtn" onclick="camMove(-1)">◀</button>
@@ -203,10 +206,11 @@
   <div class="cambottom">
     <img class="lastth" id="lastTh" alt="">
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
-    <div class="camside" id="camSide" style="transform:rotate(90deg);transform-origin:center center;">
+    <div class="camside" id="camSide">
       <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px;white-space:nowrap">👁2초ON</button>
       <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px;white-space:nowrap">✋안정ON</button>
     </div>
+  </div>
   </div>
 </div>
 <div class="flashfx" id="flashFx"></div>
@@ -551,7 +555,7 @@ function fsSessStart(){
   fsSessPersist(); fsSessUpdate();
   toast('📁 폴더 고정: ' + fsSession + ' · 앱을 나갔다 와도 이어서 저장됩니다');
 }
-function fsSessClear(){ fsSession = null; fsSessPersist(); fsSessUpdate(); }
+function fsSessClear(){ try{ if(fsSession) localStorage.setItem('fs_last', fsSession); }catch(e){} fsSession = null; fsSessPersist(); fsSessUpdate(); }
 function fsSessToggle(){
   if(!fsOn()){ toast('폰 폴더 저장은 APK 앱에서만 동작합니다'); return; }
   if(!fsPermOk()){ fsPermAsk(); return; }
@@ -1431,7 +1435,18 @@ function applyUiRot(force){
   var ang=uiOrientAngle();
   if(!force && ang===_lastUiAng) return;
   _lastUiAng=ang;
-  var cs=document.getElementById('camSide'); if(cs) cs.style.transform='rotate('+ang+'deg)';
+  var cu=document.getElementById('camUI');
+  if(cu){
+    if(ang===90||ang===270){
+      cu.style.width=window.innerHeight+'px'; cu.style.height=window.innerWidth+'px';
+      cu.style.left='50%'; cu.style.top='50%'; cu.style.right='auto'; cu.style.bottom='auto';
+      cu.style.transformOrigin='center center';
+      cu.style.transform='translate(-50%,-50%) rotate('+ang+'deg)';
+    } else {
+      cu.style.width=''; cu.style.height=''; cu.style.left=''; cu.style.top=''; cu.style.right=''; cu.style.bottom='';
+      cu.style.transform='';
+    }
+  }
   var ov=document.getElementById('photoViewer');
   if(ov && ov.style.display!=='none'){
     if(ang===90||ang===270){
@@ -1903,6 +1918,106 @@ function extOf(blob){
   const t = (blob.type||'').toLowerCase();
   if(t.includes('png')) return '.png';
   return '.jpg';
+}
+
+/* ───────── LocalSend 노트북 전송 (마지막 완료 폴더 원터치) ───────── */
+function lsOn(){ return !!(window.HwangiBridge && HwangiBridge.lsScan); }
+let lsDev = null; try{ lsDev = JSON.parse(localStorage.getItem('ls_dev')||'null'); }catch(e){}
+function lsSaveDev(d){ lsDev = d; try{ localStorage.setItem('ls_dev', JSON.stringify(d)); }catch(e){} }
+function lsTarget(){
+  let last = ''; try{ last = localStorage.getItem('fs_last')||''; }catch(e){}
+  return last || fsSession || '';
+}
+let lsBusy = false, lsPendFolder = '';
+function lsMenu(){
+  if(!lsOn()){ toast('최신 APK를 설치하면 사용할 수 있습니다'); return; }
+  if(lsBusy){ toast('전송이 진행 중입니다'); return; }
+  const name = lsTarget();
+  if(!name){ lsPickFolder(); return; }
+  lsGo(name);
+}
+function lsGo(name){
+  lsPendFolder = name;
+  if(lsDev) lsSendTo(name, lsDev, '');
+  else lsScanGo();
+}
+function lsScanGo(){
+  lsBusy = true;
+  $('prog').style.display='flex'; $('pfill').style.width='0%';
+  $('progMsg').textContent='📡 노트북(LocalSend) 찾는 중… 같은 WiFi/핫스팟이어야 합니다';
+  try{ HwangiBridge.lsScan(lsDev? lsDev.ip : ''); }
+  catch(e){ lsBusy=false; $('prog').style.display='none'; toast('검색 실패'); }
+}
+window.__lsFound = function(list){
+  lsBusy = false; $('prog').style.display='none';
+  list = list || [];
+  if(!list.length){
+    choiceBox('노트북을 찾지 못했습니다\n\n① 노트북 LocalSend가 켜져 있는지\n② 폰과 같은 WiFi/핫스팟인지 확인하세요', [
+      {label:'다시 찾기', bg:'#16a34a', fn:function(){ lsScanGo(); }},
+      {label:'IP 직접 입력', bg:'#2563eb', fn:function(){ lsManual(); }},
+      {label:'취소', bg:'#374151', fn:null}
+    ]); return;
+  }
+  const opts = list.slice(0,6).map(function(d){
+    return {label:'💻 '+(d.alias||d.ip)+' ('+d.ip+')', bg:'#2563eb', fn:function(){ lsSaveDev(d); lsSendTo(lsPendFolder||lsTarget(), d, ''); }};
+  });
+  opts.push({label:'취소', bg:'#374151', fn:null});
+  choiceBox('보낼 노트북을 선택하세요', opts);
+};
+function lsManual(){
+  const ip = prompt('노트북 LocalSend 화면 우상단 ⓘ의 IP를 입력하세요\n예: 10.43.53.144', lsDev? lsDev.ip:'');
+  if(!ip) return;
+  const d = {ip: ip.trim(), alias: ip.trim(), proto:'https'};
+  lsSaveDev(d); lsSendTo(lsPendFolder || lsTarget(), d, '');
+}
+function lsSendTo(name, d, pin){
+  if(!name){ lsPickFolder(); return; }
+  lsBusy = true; lsPendFolder = name;
+  $('prog').style.display='flex'; $('pfill').style.width='0%';
+  $('progMsg').textContent='📡 '+name+' → '+(d.alias||d.ip)+' · 노트북 LocalSend에서 [수락]을 눌러주세요…';
+  try{ HwangiBridge.lsSend(name, d.ip, d.proto||'https', pin||''); }
+  catch(e){ lsBusy=false; $('prog').style.display='none'; toast('전송 시작 실패'); }
+}
+window.__lsProg = function(done, total){
+  $('progMsg').textContent='📡 노트북 전송 중… '+done+'/'+total;
+  $('pfill').style.width=Math.round(100*done/Math.max(1,total))+'%';
+};
+window.__lsDone = function(ok, fail, msg){
+  lsBusy = false; $('prog').style.display='none';
+  if(msg === 'PIN'){
+    const p = prompt('노트북 LocalSend에 PIN이 설정되어 있습니다.\nPIN 입력:');
+    if(p && lsDev) lsSendTo(lsPendFolder, lsDev, p.trim());
+    return;
+  }
+  if(msg === 'NOFILES'){
+    choiceBox('보낼 폴더를 찾지 못했습니다\n📁 '+lsPendFolder, [
+      {label:'폴더 목록에서 고르기', bg:'#2563eb', fn:function(){ lsPickFolder(); }},
+      {label:'취소', bg:'#374151', fn:null}
+    ]); return;
+  }
+  if(msg === 'CONNECT'){
+    toast('저장된 노트북에 연결되지 않아 다시 찾습니다');
+    lsDev = null; lsScanGo(); return;
+  }
+  if(msg === 'REJECT'){ toast('노트북에서 거절(또는 시간초과)했습니다'); return; }
+  if(msg === 'BUSY'){ toast('노트북이 다른 전송을 받는 중입니다'); return; }
+  if(msg){ toast('⚠ 전송 실패 ('+msg+')'); return; }
+  if(fail>0){ toast('⚠ '+ok+'개 성공 · '+fail+'개 실패 — 한 번 더 보내주세요'); return; }
+  toast('✅ 노트북 전송 완료 ('+ok+'개) · 노트북 다운로드 폴더를 확인하세요');
+};
+window.__lsPick = function(list){
+  lsBusy = false; $('prog').style.display='none';
+  list = list||[];
+  if(!list.length){ toast('보낼 폴더가 없습니다. 먼저 사진저장을 완료하세요'); return; }
+  const opts = list.slice(0,5).map(function(n){
+    return {label:'📁 '+n, bg:'#2563eb', fn:function(){ lsGo(n); }};
+  });
+  opts.push({label:'취소', bg:'#374151', fn:null});
+  choiceBox('보낼 폴더를 선택하세요 (최신순)', opts);
+};
+function lsPickFolder(){
+  if(!(window.HwangiBridge && HwangiBridge.lsList)){ toast('보낼 폴더 기록이 없습니다'); return; }
+  try{ HwangiBridge.lsList(); }catch(e){ toast('폴더 목록을 열 수 없습니다'); }
 }
 
 /* ───────── ZIP (STORE, UTF-8 파일명) ───────── */
