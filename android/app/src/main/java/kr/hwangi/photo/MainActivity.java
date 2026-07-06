@@ -342,6 +342,212 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript("window.__fsDone&&window.__fsDone(" + ok + "," + fail + ");", null); } });
             } });
         }
+        /* ── LocalSend 전송: 세션 폴더를 노트북으로 폴더째 (프로토콜 v2) ── */
+        private volatile boolean lsCancelFlag = false;
+        private javax.net.ssl.SSLSocketFactory lsFactory = null;
+        private final String lsFp = java.util.UUID.randomUUID().toString();
+        private javax.net.ssl.SSLSocketFactory lsSsl(){
+            if (lsFactory != null) return lsFactory;
+            try{
+                javax.net.ssl.TrustManager[] tm = new javax.net.ssl.TrustManager[]{ new javax.net.ssl.X509TrustManager(){
+                    public void checkClientTrusted(java.security.cert.X509Certificate[] c, String a){}
+                    public void checkServerTrusted(java.security.cert.X509Certificate[] c, String a){}
+                    public java.security.cert.X509Certificate[] getAcceptedIssuers(){ return new java.security.cert.X509Certificate[0]; }
+                }};
+                javax.net.ssl.SSLContext sc = javax.net.ssl.SSLContext.getInstance("TLS");
+                sc.init(null, tm, new java.security.SecureRandom());
+                lsFactory = sc.getSocketFactory();
+            }catch(Exception e){}
+            return lsFactory;
+        }
+        private java.net.HttpURLConnection lsOpen(String proto, String ip, String path, int ct, int rt) throws Exception {
+            java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(proto+"://"+ip+":53317"+path).openConnection();
+            if (c instanceof javax.net.ssl.HttpsURLConnection){
+                ((javax.net.ssl.HttpsURLConnection)c).setSSLSocketFactory(lsSsl());
+                ((javax.net.ssl.HttpsURLConnection)c).setHostnameVerifier(new javax.net.ssl.HostnameVerifier(){ public boolean verify(String h, javax.net.ssl.SSLSession s){ return true; } });
+            }
+            c.setConnectTimeout(ct); c.setReadTimeout(rt);
+            return c;
+        }
+        private String lsInfo(){
+            return "{\"alias\":\"급식실 사진앱\",\"version\":\"2.0\",\"deviceModel\":\"Samsung\",\"deviceType\":\"mobile\",\"fingerprint\":\"" + lsFp + "\",\"port\":53317,\"protocol\":\"http\",\"download\":false}";
+        }
+        private void lsJs(final String js){
+            runOnUiThread(new Runnable(){ public void run(){ web.evaluateJavascript(js, null); } });
+        }
+        private String lsQ(String s){ try{ return java.net.URLEncoder.encode(s, "UTF-8"); }catch(Exception e){ return s; } }
+        private String lsJsonEsc(String s){ return s.replace("\\","\\\\").replace("\"","\\\""); }
+        private String lsMime(String n){
+            String l = n.toLowerCase();
+            if (l.endsWith(".jpg")||l.endsWith(".jpeg")) return "image/jpeg";
+            if (l.endsWith(".png")) return "image/png";
+            if (l.endsWith(".txt")) return "text/plain";
+            if (l.endsWith(".mp4")) return "video/mp4";
+            if (l.endsWith(".pdf")) return "application/pdf";
+            return "application/octet-stream";
+        }
+        private void lsWalk(java.io.File d, java.util.ArrayList<java.io.File> out){
+            java.io.File[] fs = d.listFiles(); if (fs == null) return;
+            java.util.Arrays.sort(fs);
+            for (java.io.File f : fs){
+                if (f.getName().startsWith(".")) continue;
+                if (f.isDirectory()) lsWalk(f, out); else if (f.length() > 0) out.add(f);
+            }
+        }
+        private org.json.JSONObject lsProbe(String ip){
+            try{ java.net.Socket s = new java.net.Socket(); s.connect(new java.net.InetSocketAddress(ip, 53317), 400); s.close(); }catch(Exception e){ return null; }
+            for (String proto : new String[]{"https","http"}){
+                java.net.HttpURLConnection c = null;
+                try{
+                    c = lsOpen(proto, ip, "/api/localsend/v2/register", 1500, 3000);
+                    c.setDoOutput(true); c.setRequestProperty("Content-Type","application/json");
+                    java.io.OutputStream os = c.getOutputStream(); os.write(lsInfo().getBytes("UTF-8")); os.close();
+                    int code = c.getResponseCode();
+                    if (code >= 200 && code < 300){
+                        java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                        java.io.InputStream in = c.getInputStream(); byte[] b = new byte[4096]; int n;
+                        while((n = in.read(b)) > 0) bo.write(b, 0, n);
+                        in.close();
+                        org.json.JSONObject r = new org.json.JSONObject(bo.toString("UTF-8"));
+                        org.json.JSONObject d = new org.json.JSONObject();
+                        d.put("ip", ip); d.put("alias", r.optString("alias", ip)); d.put("proto", proto);
+                        return d;
+                    }
+                }catch(Exception e){}
+                finally{ if (c != null) try{ c.disconnect(); }catch(Exception e2){} }
+            }
+            return null;
+        }
+        @JavascriptInterface public void lsScan(final String savedIp){
+            new Thread(new Runnable(){ public void run(){
+                final org.json.JSONArray found = new org.json.JSONArray();
+                try{
+                    if (savedIp != null && savedIp.trim().length() > 0){
+                        org.json.JSONObject d = lsProbe(savedIp.trim());
+                        if (d != null) found.put(d);
+                    }
+                    if (found.length() == 0){
+                        java.util.LinkedHashSet<String> ips = new java.util.LinkedHashSet<String>();
+                        java.util.Enumeration<java.net.NetworkInterface> nis = java.net.NetworkInterface.getNetworkInterfaces();
+                        while(nis != null && nis.hasMoreElements()){
+                            java.net.NetworkInterface ni = nis.nextElement();
+                            try{ if (!ni.isUp() || ni.isLoopback()) continue; }catch(Exception e){ continue; }
+                            for (java.net.InterfaceAddress ia : ni.getInterfaceAddresses()){
+                                java.net.InetAddress ad = ia.getAddress();
+                                if (!(ad instanceof java.net.Inet4Address)) continue;
+                                String h = ad.getHostAddress();
+                                if (h == null || h.startsWith("127.")) continue;
+                                if (!(h.startsWith("10.")||h.startsWith("192.168.")||h.startsWith("172."))) continue;
+                                String base = h.substring(0, h.lastIndexOf('.'));
+                                for (int i = 1; i < 255; i++) ips.add(base + "." + i);
+                                ips.remove(h);
+                            }
+                        }
+                        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(48);
+                        final Object lk = new Object();
+                        for (final String ip : ips){
+                            pool.execute(new Runnable(){ public void run(){
+                                org.json.JSONObject d = lsProbe(ip);
+                                if (d != null){ synchronized(lk){ found.put(d); } }
+                            }});
+                        }
+                        pool.shutdown();
+                        pool.awaitTermination(15, java.util.concurrent.TimeUnit.SECONDS);
+                    }
+                }catch(Exception e){}
+                lsJs("window.__lsFound&&__lsFound(" + found.toString() + ")");
+            }}).start();
+        }
+        @JavascriptInterface public void lsList(){
+            new Thread(new Runnable(){ public void run(){
+                org.json.JSONArray arr = new org.json.JSONArray();
+                try{
+                    java.io.File base = fsDir("");
+                    java.io.File[] ds = base.listFiles();
+                    if (ds != null){
+                        java.util.Arrays.sort(ds, new java.util.Comparator<java.io.File>(){
+                            public int compare(java.io.File a, java.io.File b){ return Long.compare(b.lastModified(), a.lastModified()); }
+                        });
+                        for (java.io.File d : ds) if (d.isDirectory()) arr.put(d.getName());
+                    }
+                }catch(Exception e){}
+                lsJs("window.__lsPick&&__lsPick(" + arr.toString() + ")");
+            }}).start();
+        }
+        @JavascriptInterface public void lsCancel(){ lsCancelFlag = true; }
+        @JavascriptInterface public void lsSend(final String rel, final String ip, final String proto0, final String pin){
+            lsCancelFlag = false;
+            new Thread(new Runnable(){ public void run(){
+                int ok = 0, fail = 0; int total = 0;
+                try{
+                    java.io.File root = fsDir(rel);
+                    java.util.ArrayList<java.io.File> files = new java.util.ArrayList<java.io.File>();
+                    if (root.isDirectory()) lsWalk(root, files);
+                    total = files.size();
+                    if (total == 0){ lsJs("window.__lsDone&&__lsDone(0,0,'NOFILES')"); return; }
+                    String proto = (proto0 != null && proto0.equals("http")) ? "http" : "https";
+                    String rootName = root.getName();
+                    String rootPath = root.getAbsolutePath();
+                    StringBuilder fb = new StringBuilder();
+                    for (int i = 0; i < total; i++){
+                        java.io.File f = files.get(i);
+                        String rn = rootName + f.getAbsolutePath().substring(rootPath.length()).replace('\\', '/');
+                        if (i > 0) fb.append(',');
+                        fb.append("\"f").append(i).append("\":{\"id\":\"f").append(i)
+                          .append("\",\"fileName\":\"").append(lsJsonEsc(rn))
+                          .append("\",\"size\":").append(f.length())
+                          .append(",\"fileType\":\"").append(lsMime(f.getName())).append("\"}");
+                    }
+                    String body = "{\"info\":" + lsInfo() + ",\"files\":{" + fb + "}}";
+                    String q = (pin != null && pin.length() > 0) ? ("?pin=" + lsQ(pin)) : "";
+                    java.net.HttpURLConnection c;
+                    int code;
+                    try{
+                        c = lsOpen(proto, ip, "/api/localsend/v2/prepare-upload" + q, 6000, 180000);
+                        c.setDoOutput(true); c.setRequestProperty("Content-Type","application/json");
+                        java.io.OutputStream os = c.getOutputStream(); os.write(body.getBytes("UTF-8")); os.close();
+                        code = c.getResponseCode();
+                    }catch(Exception ce){ lsJs("window.__lsDone&&__lsDone(0,0,'CONNECT')"); return; }
+                    if (code == 401){ lsJs("window.__lsDone&&__lsDone(0,0,'PIN')"); return; }
+                    if (code == 403){ lsJs("window.__lsDone&&__lsDone(0,0,'REJECT')"); return; }
+                    if (code == 409){ lsJs("window.__lsDone&&__lsDone(0,0,'BUSY')"); return; }
+                    if (code < 200 || code >= 300){ lsJs("window.__lsDone&&__lsDone(0,0,'HTTP" + code + "')"); return; }
+                    java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                    java.io.InputStream in = c.getInputStream(); byte[] rb = new byte[4096]; int rn2;
+                    while((rn2 = in.read(rb)) > 0) bo.write(rb, 0, rn2);
+                    in.close();
+                    org.json.JSONObject resp = new org.json.JSONObject(bo.toString("UTF-8"));
+                    String sess = resp.getString("sessionId");
+                    org.json.JSONObject toks = resp.getJSONObject("files");
+                    for (int i = 0; i < total; i++){
+                        if (lsCancelFlag){
+                            try{ java.net.HttpURLConnection cc = lsOpen(proto, ip, "/api/localsend/v2/cancel?sessionId=" + lsQ(sess), 3000, 5000); cc.setRequestMethod("POST"); cc.setDoOutput(true); cc.getOutputStream().close(); cc.getResponseCode(); cc.disconnect(); }catch(Exception e){}
+                            break;
+                        }
+                        java.io.File f = files.get(i);
+                        String fid = "f" + i;
+                        if (!toks.has(fid)) continue;
+                        try{
+                            java.net.HttpURLConnection uc = lsOpen(proto, ip, "/api/localsend/v2/upload?sessionId=" + lsQ(sess) + "&fileId=" + fid + "&token=" + lsQ(toks.getString(fid)), 6000, 120000);
+                            uc.setDoOutput(true); uc.setRequestProperty("Content-Type","application/octet-stream");
+                            uc.setFixedLengthStreamingMode(f.length());
+                            java.io.OutputStream uo = uc.getOutputStream();
+                            java.io.FileInputStream fi = new java.io.FileInputStream(f);
+                            byte[] buf = new byte[65536]; int n;
+                            while((n = fi.read(buf)) > 0) uo.write(buf, 0, n);
+                            fi.close(); uo.close();
+                            int ucode = uc.getResponseCode();
+                            uc.disconnect();
+                            if (ucode >= 200 && ucode < 300) ok++; else fail++;
+                        }catch(Exception ue){ fail++; }
+                        lsJs("window.__lsProg&&__lsProg(" + (i+1) + "," + total + ")");
+                    }
+                    lsJs("window.__lsDone&&__lsDone(" + ok + "," + fail + ",'')");
+                }catch(Exception e){
+                    lsJs("window.__lsDone&&__lsDone(" + ok + "," + fail + ",'ERR')");
+                }
+            }}).start();
+        }
         @JavascriptInterface public void start(String name){
             try{
                 ContentResolver cr = getContentResolver();
