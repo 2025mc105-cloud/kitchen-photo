@@ -115,7 +115,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v54</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v55</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -209,6 +209,7 @@
     <div class="camside" id="camSide">
       <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px;white-space:nowrap">👁2초ON</button>
       <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px;white-space:nowrap">✋안정ON</button>
+      <button class="cbtn" onclick="delLast()" style="font-size:12px;white-space:nowrap;background:#7f1d1dd9">🗑직전</button>
     </div>
   </div>
   </div>
@@ -368,6 +369,7 @@ function openFolder(fid){
   $('fHint').style.display='none';
   renderFolder();
   window.scrollTo(0,0);
+  try{ $('folderView').scrollTop=0; applyUiRot(true); }catch(e){}
 }
 function goHome(){
   finalizePendingUndo();
@@ -376,6 +378,7 @@ function goHome(){
   $('folderView').style.display='none';
   $('homeView').style.display='block';
   renderHome();
+  try{ applyUiRot(true); }catch(e){}
 }
 function folderPhotos(fid){ return photos.filter(p=>p.fid===fid).sort((a,b)=>a.seq-b.seq); }
 /* ═════════ v53: 썸네일 엔진 · 다중선택 삭제 · 즉시삭제+실행취소 · 실시간 폰 폴더 저장 ═════════ */
@@ -513,6 +516,7 @@ function showUndoBar(){
   try{ const bb=document.querySelector('#folderView .bottom'); bar.style.bottom = (bb? bb.offsetHeight+14 : 16)+'px'; }catch(e){ bar.style.bottom='16px'; }
   bar.style.display='flex';
   const m=document.getElementById('undoMsg'); if(m) m.textContent = undoStack.length+'장 삭제됨';
+  try{ applyUiRot(true); }catch(e){}
   undoTimer = setTimeout(finalizeDeletes, 8000);
 }
 function hideUndoBar(){ const b=document.getElementById('undoBar'); if(b) b.style.display='none'; }
@@ -520,7 +524,7 @@ function undoDelete(){
   if(undoTimer){ clearTimeout(undoTimer); undoTimer=null; }
   undoStack.forEach(r=>photos.push(r));
   undoStack = [];
-  hideUndoBar(); renderFolder(); toast('복구되었습니다');
+  hideUndoBar(); renderFolder(); if($('camView').style.display==='flex'){ updateCamHead(); camLastThRefresh(); } toast('복구되었습니다');
 }
 function finalizeDeletes(){
   if(undoTimer){ clearTimeout(undoTimer); undoTimer=null; }
@@ -1102,14 +1106,28 @@ function toggleReview(){
   if($('revBtn')) $('revBtn').textContent = reviewOn ? '\u{1F441}2\uCD08ON' : '\u{1F441}2\uCD08';
   toast(reviewOn ? '\uCD2C\uC601 \uD6C4 2\uCD08 \uBBF8\uB9AC\uBCF4\uAE30 ON' : '2\uCD08 \uBBF8\uB9AC\uBCF4\uAE30 OFF');
 }
+/* ── 직전사진 빠른 삭제 (촬영화면 상시 버튼) ── */
+function camLastThRefresh(){
+  const fp = folderPhotos(curFolder), el = $('lastTh'); if(!el) return;
+  if(el._u){ try{ URL.revokeObjectURL(el._u); }catch(e){} el._u = null; }
+  if(fp.length){ el._u = URL.createObjectURL(fp[fp.length-1].blob); el.src = el._u; }
+  else { el.src=''; }
+}
+function delLast(){
+  if(typeof pendingShots !== 'undefined' && Object.keys(pendingShots).length){ toast('사진 저장 마무리 중… 잠시 후 다시 눌러주세요'); return; }
+  const fp = folderPhotos(curFolder);
+  if(!fp.length){ toast('이 폴더에 사진이 없습니다'); return; }
+  quickDelete(fp[fp.length-1].id);
+  updateCamHead(); camLastThRefresh();
+}
 function showReview(rec){
   let ov = document.getElementById('reviewOv');
   if(!ov){
     ov = document.createElement('div'); ov.id='reviewOv';
     ov.style.cssText='position:fixed;inset:0;background:#000;z-index:100;display:none;flex-direction:column;';
     ov.innerHTML='<div style="flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;"><img id="rvImg" style="max-width:100%;max-height:100%;object-fit:contain;"></div>'
-      +'<div style="display:flex;gap:10px;padding:14px;"><button id="rvDel" style="flex:1;background:#ef4444;border:none;color:#fff;border-radius:12px;padding:18px;font-size:19px;font-weight:bold;">\uD83D\uDDD1 \uC0AD\uC81C</button>'
-      +'<button id="rvKeep" style="flex:1;background:#16a34a;border:none;color:#fff;border-radius:12px;padding:18px;font-size:19px;font-weight:bold;">\uACC4\uC18D \u25B6</button></div>';
+      +'<div style="display:flex;gap:10px;padding:8px 14px;"><button id="rvKeep" style="flex:1;background:#16a34a;border:none;color:#fff;border-radius:12px;padding:8px;font-size:16px;font-weight:bold;">\uACC4\uC18D \u25B6</button>'
+      +'<button id="rvDel" style="flex:1;background:#ef4444;border:none;color:#fff;border-radius:12px;padding:8px;font-size:16px;font-weight:bold;">\uD83D\uDDD1 \uC0AD\uC81C</button></div>';
     document.body.appendChild(ov);
   }
   const img = ov.querySelector('#rvImg');
@@ -1117,7 +1135,7 @@ function showReview(rec){
   img.onload = ()=>{ applyUiRot(true); };
   img.src = url; reviewing = true;
   const close = ()=>{ if(reviewTimer){ clearTimeout(reviewTimer); reviewTimer=null; } ov.style.display='none'; try{ URL.revokeObjectURL(url); }catch(e){} reviewing=false; };
-  ov.querySelector('#rvDel').onclick = ()=>{ removePhoto(rec.id); updateCamHead(); toast('\uC0AD\uC81C\uB428'); close(); };
+  ov.querySelector('#rvDel').onclick = ()=>{ removePhoto(rec.id); updateCamHead(); camLastThRefresh(); toast('\uC0AD\uC81C\uB428'); close(); };
   ov.querySelector('#rvKeep').onclick = ()=>{ close(); };
   ov.style.display = 'flex';
   applyUiRot(true);
@@ -1133,7 +1151,10 @@ const SHARP_THRESH = 30, DARK_THRESH = 70;
 function camSupported(){
   return window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
 }
-async function openCamera(){ return openCameraDev(null); }
+async function openCamera(){
+  try{ var _zp = localStorage.getItem('cam_zoom_pref'); if(_zp === 'uw' && uwDevId && mainDevId) return openCameraDev(uwDevId); }catch(e){}
+  return openCameraDev(null);
+}
 async function openCameraDev(devId){
   if(!camSupported()){ $('camInput').value=''; $('camInput').click(); return; }
   const base = devId ? {deviceId:{exact:devId}} : {facingMode:{ideal:'environment'}};
@@ -1160,7 +1181,13 @@ async function openCameraDev(devId){
   }catch(e){ $('torchBtn').style.display='none'; zoomCaps=null; }
   curZoom = 1; digiZoom = 1;
   $('camVideo').style.transform = '';
-  if(zoomCaps && !onAltLens) setZoom(1, true);
+  var _rz = 1; try{ var _zp = localStorage.getItem('cam_zoom_pref'); if(_zp && _zp !== 'uw') _rz = parseFloat(_zp) || 1; }catch(e){}
+  var _zres = false;
+  if(!onAltLens && _rz && Math.abs(_rz-1) > 0.05){
+    if(_rz > 1 || (zoomCaps && zoomCaps.min <= 0.65)){ setZoom(_rz, true); _zres = true; }
+  }
+  if(!_zres && zoomCaps && !onAltLens) setZoom(1, true);
+  try{ if(localStorage.getItem('cam_torch2') === '1'){ var _tca = camTrack.getCapabilities ? camTrack.getCapabilities() : {}; if(_tca.torch){ torchOn = true; camTrack.applyConstraints({advanced:[{torch:true}]}); } } }catch(e){}
   if(!backCams.length){
     try{
       const ds = await navigator.mediaDevices.enumerateDevices();
@@ -1177,7 +1204,7 @@ async function openCameraDev(devId){
   try{ if(navigator.wakeLock) wakeLock = await navigator.wakeLock.request('screen'); }catch(e){}
 }
 async function swapTo(devId){ stopTracks(); await openCameraDev(devId); }
-function saveUW(id){ uwDevId=id; try{ localStorage.setItem('cam_uw_dev', id); }catch(e){} }
+function saveUW(id){ uwDevId=id; try{ localStorage.setItem('cam_uw_dev', id); localStorage.setItem('cam_zoom_pref','uw'); }catch(e){} }
 function stopTracks(){
   if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; camTrack=null; imgCap=null; }
 }
@@ -1285,12 +1312,14 @@ async function setZoom(z, silent){
     vd.style.transform = 'scale(' + z + ')';
   }
   curZoom = z; renderZoomBar();
+  if(!silent){ try{ localStorage.setItem('cam_zoom_pref', String(z)); }catch(e){} }
   if(!silent) toast(z + '×' + (digiZoom > 1 ? ' (디지털 줌)' : ''));
 }
 async function toggleTorch(){
   if(!camTrack) return;
   torchOn = !torchOn;
   try{ await camTrack.applyConstraints({advanced:[{torch:torchOn}]}); }catch(e){ torchOn=false; }
+  try{ localStorage.setItem('cam_torch2', torchOn ? '1' : '0'); }catch(e){}
 }
 
 /* ── 📢 소리 촬영: 박수·"찍어" 같은 큰 소리에 셔터 ── */
@@ -1445,6 +1474,46 @@ function applyUiRot(force){
     } else {
       cu.style.width=''; cu.style.height=''; cu.style.left=''; cu.style.top=''; cu.style.right=''; cu.style.bottom='';
       cu.style.transform='';
+    }
+  }
+  var sb=document.getElementById('shutterBtn');
+  if(sb){
+    if(ang===90||ang===270){
+      sb.style.position='fixed'; sb.style.top='50%'; sb.style.bottom='auto';
+      sb.style.transform='translateY(-50%)'; sb.style.zIndex='95';
+      if(ang===90){ sb.style.right='12px'; sb.style.left='auto'; }
+      else { sb.style.left='12px'; sb.style.right='auto'; }
+    } else {
+      sb.style.position=''; sb.style.top=''; sb.style.bottom=''; sb.style.transform='';
+      sb.style.zIndex=''; sb.style.right=''; sb.style.left='';
+    }
+  }
+  var fv=document.getElementById('folderView');
+  if(fv){
+    if((ang===90||ang===270) && fv.style.display!=='none'){
+      fv.style.position='fixed'; fv.style.maxWidth='none'; fv.style.margin='0';
+      fv.style.width=window.innerHeight+'px'; fv.style.height=window.innerWidth+'px';
+      fv.style.left='50%'; fv.style.top='50%';
+      fv.style.transformOrigin='center center';
+      fv.style.transform='translate(-50%,-50%) rotate('+ang+'deg)';
+      fv.style.overflowY='auto'; fv.style.background='var(--bg)'; fv.style.zIndex='40';
+      fv._rot=true;
+    } else if(fv._rot){
+      fv.style.position=''; fv.style.maxWidth=''; fv.style.margin=''; fv.style.width=''; fv.style.height='';
+      fv.style.left=''; fv.style.top=''; fv.style.transformOrigin=''; fv.style.transform='';
+      fv.style.overflowY=''; fv.style.background=''; fv.style.zIndex='';
+      fv._rot=false;
+    }
+  }
+  var ub=document.getElementById('undoBar');
+  if(ub && ub.style.display!=='none'){
+    if(ang===90||ang===270){
+      ub.style.left='50%'; ub.style.right='auto'; ub.style.bottom='auto'; ub.style.top='50%';
+      ub.style.width=Math.min(window.innerHeight-24, 520)+'px';
+      ub.style.transform='translate(-50%,-50%) rotate('+ang+'deg) translateY('+(Math.floor(window.innerWidth/2)-110)+'px)';
+    } else {
+      ub.style.width=''; ub.style.top=''; ub.style.transform=''; ub.style.left='12px'; ub.style.right='12px';
+      ub.style.bottom='16px';
     }
   }
   var ov=document.getElementById('photoViewer');
@@ -1903,7 +1972,7 @@ function resetAll(){
   const total = photos.length;
   if(!total){ toast('사진이 없습니다'); return; }
   if(!confirm('사진 '+total+'장을 모두 삭제하고 새 학교를 시작할까요?')) return;
-  if(!confirm('정말 삭제합니다. ZIP 내보내기는 하셨나요?')) return;
+  if(!confirm('정말 삭제합니다. 노트북(LocalSend) 전송은 하셨나요?')) return;
   photos.forEach(p=>{ if(thumbURL[p.id]){URL.revokeObjectURL(thumbURL[p.id]); delete thumbURL[p.id];} });
   photos = []; idbClear(); renderHome(); toast('전체 삭제 완료');
 }
