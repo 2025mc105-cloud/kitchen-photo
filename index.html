@@ -36,7 +36,7 @@
   .grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .fbtn{
     position:relative; background:var(--card); border:1px solid var(--line); color:var(--txt);
-    border-radius:12px; padding:16px 6px; font-size:15px; text-align:center; cursor:pointer;
+    border-radius:12px; padding:10px 4px; font-size:14px; text-align:center; cursor:pointer;
   }
   .fbtn.wide{grid-column:1/-1; padding:14px; font-size:16px;}
   .fbtn.has{border-color:var(--ok); background:#14301f;}
@@ -87,7 +87,7 @@
   .zbtn.alt{background:#00000044;}
   .cambottom{
     position:absolute; left:0; right:0; bottom:0; z-index:82; background:rgba(0,0,0,.22);
-    display:flex; align-items:center; justify-content:space-between; padding:12px 22px calc(12px + env(safe-area-inset-bottom));
+    display:flex; align-items:flex-end; justify-content:space-between; padding:10px 22px calc(6px + env(safe-area-inset-bottom));
   }
   .lastth{width:54px; height:54px; border-radius:10px; border:2px solid #fff7; object-fit:cover; background:#222;}
   .shutter{width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#ffffff44;}
@@ -103,18 +103,29 @@
   .camland .camside{order:2; width:100%;}
   .camland .camside .cbtn{font-size:15px; padding:12px 2px;}
   .camland .lastth{order:3; margin-top:auto; width:64px; height:64px;}
-  .camland .camzoom{right:104px;}
-  .camland.navleft .camzoom{left:104px; right:0;}
+  .camland .camzoom{top:0; left:auto; right:104px; justify-content:flex-end; padding:8px 6px; background:rgba(0,0,0,.28);}
+  .camland.navleft .camzoom{left:104px; right:auto; justify-content:flex-start;}
   .fvland .fhead{margin:2px 0 6px;}
   .fvland .fhead .back{padding:6px 10px; font-size:14px;}
   .fvland .ftitle{font-size:16px;}
   .fvland .hint{display:none;}
   .fvland .fboard{padding:6px 8px; margin:0 0 8px;}
   .fvland .thumbs{grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px;}
-  .fvland .bottom{position:sticky; bottom:0; max-width:none; margin:0 -4px; padding:6px 8px; z-index:5;}
+  .fvland .bottom{position:static; max-width:none; margin:10px 0 0; padding:6px 4px;}
   .fvland .bottom .btn{padding:8px; font-size:14px;}
   .fvland #reorderToggle{padding:6px; font-size:13px;}
   .fvland #folderMemo{margin-top:4px; padding:4px 6px; font-size:13px;}
+  .camland .cambottom{align-items:center;}
+  .camland .camtop{right:auto; max-width:52%; border-radius:0 0 12px 0;}
+  .camland.navleft .camtop{left:auto; right:0; border-radius:0 0 0 12px;}
+  .camland .camtop .camtitle{overflow:hidden; white-space:nowrap; text-overflow:ellipsis;}
+  .camland .camboard{left:auto; right:104px; top:auto; bottom:12px; max-width:45%;}
+  .camland.navleft .camboard{right:auto; left:104px;}
+  #homeView .bottom .btn{flex:1 1 0; padding:8px 2px; font-size:12.5px; white-space:nowrap;}
+  #homeView .card{padding:8px 10px; margin-bottom:8px;}
+  #homeView h1{font-size:16px; margin:2px 0;}
+  #homeView .row{margin-bottom:5px;}
+  #homeView .grid{gap:6px;}
 
   .flashfx{position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:90; transition:opacity .12s;}
   /* 오버레이/진행/토스트 */
@@ -136,7 +147,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v56</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v57</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -165,9 +176,10 @@
   <div class="grid" id="folderGrid"></div>
 
   <div class="bottom">
-    <button class="btn" style="background:#3b82f6;font-size:13px;white-space:nowrap;" onclick="homeImport()">📥 사진불러오기</button>
+    <button class="btn" style="background:#3b82f6;" onclick="homeImport()">📥불러오기</button>
     <button class="btn red" onclick="resetAll()">전체삭제</button>
-    <button class="btn green" onclick="lsMenu()">📡 노트북</button>
+    <button class="btn" style="background:#f59e0b;" onclick="zipMenu()">📦ZIP</button>
+    <button class="btn green" onclick="lsMenu()">📡노트북</button>
   </div>
 </div>
 
@@ -248,7 +260,7 @@
 <!-- 진행률 -->
 <div class="prog" id="prog">
   <div class="pbox">
-    <div id="progMsg">ZIP 만드는 중…</div>
+    <div id="progMsg">준비 중…</div>
     <div class="pbar"><div class="pfill" id="pfill"></div></div>
   </div>
 </div>
@@ -1525,7 +1537,7 @@ function applyUiRot(force){
     if(ang===90||ang===270){
       ub.style.left='50%'; ub.style.right='auto'; ub.style.bottom='auto'; ub.style.top='50%';
       ub.style.width=Math.min(window.innerHeight-24, 520)+'px';
-      ub.style.transform='translate(-50%,-50%) rotate('+ang+'deg) translateY('+(Math.floor(window.innerWidth/2)-110)+'px)';
+      ub.style.transform='translate(-50%,-50%) rotate('+ang+'deg) translateY('+(Math.floor(window.innerWidth/2)-44)+'px)';
     } else {
       ub.style.width=''; ub.style.top=''; ub.style.transform=''; ub.style.left='12px'; ub.style.right='12px';
       ub.style.bottom='16px';
