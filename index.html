@@ -110,11 +110,21 @@
   .fvland .ftitle{font-size:16px;}
   .fvland .hint{display:none;}
   .fvland .fboard{padding:6px 8px; margin:0 0 8px;}
-  .fvland .thumbs{grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px;}
-  .fvland .bottom{position:static; max-width:none; margin:10px 0 0; padding:6px 4px;}
+  .fvland .thumbs{grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; flex:1 1 auto; align-content:start; min-height:0;}
+  .fvland .bottom{position:sticky; bottom:0; max-width:none; margin:0; padding:6px 4px; z-index:6; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; align-items:stretch;}
   .fvland .bottom .btn{padding:8px; font-size:14px;}
   .fvland #reorderToggle{padding:6px; font-size:13px;}
   .fvland #folderMemo{margin-top:4px; padding:4px 6px; font-size:13px;}
+  .fvland{display:flex; flex-direction:column;}
+  .fvland #delBar{grid-column:1/-1; order:1;}
+  .fvland #reorderBar{display:contents !important;}
+  .fvland .bottom > div:last-of-type{display:contents !important;}
+  .fvland .bottom .btn.gray{order:2;}
+  .fvland .bottom .btn.warn{order:3;}
+  .fvland .bottom .btn.blue{order:4;}
+  .fvland #reorderToggle{order:5; white-space:nowrap; font-size:12px !important; padding:10px 2px; border-radius:8px;}
+  .fvland #reorderBtns{grid-column:1/-1; order:6;}
+  .fvland .bottom .btn{padding:10px 2px; font-size:13px;}
   .camland .cambottom{align-items:center;}
   .camland .camtop{top:auto; bottom:8px; left:8px; right:auto; max-width:none; border-radius:12px;}
   .camland.navleft .camtop{left:auto; right:8px;}
@@ -151,7 +161,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v59</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v60</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -209,7 +219,7 @@
       </div>
     </div>
     <div id="reorderBar" style="width:100%;">
-      <button id="reorderToggle" onclick="toggleReorder()" style="width:100%;padding:9px;font-size:14px;font-weight:bold;border:none;border-radius:10px;background:#374151;color:#fff;">↕ 순서변경 (꺼짐)</button>
+      <button id="reorderToggle" onclick="toggleReorder()" style="width:100%;padding:9px;font-size:14px;font-weight:bold;border:none;border-radius:10px;background:#374151;color:#fff;">↕순서변경(꺼짐)</button>
       <div id="reorderBtns" style="display:none;margin-top:8px;">
         <div style="display:flex;gap:6px;">
           <button onclick="reorderSel('first')" style="flex:1;padding:12px 2px;font-size:14px;font-weight:bold;border:none;border-radius:8px;background:#2563eb;color:#fff;">⏮맨앞</button>
@@ -804,7 +814,7 @@ function renderFolder(){
   const list = folderPhotos(curFolder);
   $('fCnt').textContent = list.length;
   const _rb=$('reorderBtns'); if(_rb) _rb.style.display = (reorderMode&&!delMode)?'block':'none';
-  const _rt=$('reorderToggle'); if(_rt){ _rt.textContent = reorderMode?('↕ 순서변경 켜짐 · '+selIds.size+'장 선택 (누르면 끄기)'):'↕ 순서변경 (꺼짐)'; _rt.style.background = reorderMode?'#16a34a':'#374151'; }
+  const _rt=$('reorderToggle'); if(_rt){ _rt.textContent = reorderMode?('↕순서변경 켜짐·'+selIds.size+'장 (끄기)'):'↕순서변경(꺼짐)'; _rt.style.background = reorderMode?'#16a34a':'#374151'; }
   updateDelBar();
   const tdiv = $('thumbs');
   if(!tdiv._ctxOff){ tdiv._ctxOff=true; tdiv.addEventListener('contextmenu', e=>e.preventDefault()); }
