@@ -92,9 +92,30 @@
   .lastth{width:54px; height:54px; border-radius:10px; border:2px solid #fff7; object-fit:cover; background:#222;}
   .shutter{width:78px; height:78px; border-radius:50%; border:5px solid #fff; background:#ffffff44;}
   .shutter:active{background:#fff;}
-  .camside{width:54px; display:flex; flex-direction:column; gap:8px; align-items:center;}
+  .camside{width:74px; display:flex; flex-direction:column; gap:8px; align-items:center;}
   .camui{position:absolute; inset:0; z-index:82; pointer-events:none;}
   .camui>*{pointer-events:auto;}
+  /* 가로모드 사용성: 촬영 세로줄 컨트롤 + 폴더 컴팩트 5열 */
+  .camside .cbtn{width:100%; padding:9px 2px; font-size:14px;}
+  .camland .cambottom{left:auto; right:0; top:0; bottom:0; width:96px; flex-direction:column; justify-content:flex-start; gap:12px; padding:14px 6px; background:rgba(0,0,0,.28);}
+  .camland.navleft .cambottom{right:auto; left:0;}
+  .camland .cambottom .shutter{order:1; flex:0 0 auto;}
+  .camland .camside{order:2; width:100%;}
+  .camland .camside .cbtn{font-size:15px; padding:12px 2px;}
+  .camland .lastth{order:3; margin-top:auto; width:64px; height:64px;}
+  .camland .camzoom{right:104px;}
+  .camland.navleft .camzoom{left:104px; right:0;}
+  .fvland .fhead{margin:2px 0 6px;}
+  .fvland .fhead .back{padding:6px 10px; font-size:14px;}
+  .fvland .ftitle{font-size:16px;}
+  .fvland .hint{display:none;}
+  .fvland .fboard{padding:6px 8px; margin:0 0 8px;}
+  .fvland .thumbs{grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px;}
+  .fvland .bottom{position:sticky; bottom:0; max-width:none; margin:0 -4px; padding:6px 8px; z-index:5;}
+  .fvland .bottom .btn{padding:8px; font-size:14px;}
+  .fvland #reorderToggle{padding:6px; font-size:13px;}
+  .fvland #folderMemo{margin-top:4px; padding:4px 6px; font-size:13px;}
+
   .flashfx{position:fixed; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:90; transition:opacity .12s;}
   /* 오버레이/진행/토스트 */
   .overlay{position:fixed; inset:0; background:#000d; display:none; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:24px; z-index:50;}
@@ -115,7 +136,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v55</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v56</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -207,9 +228,9 @@
     <img class="lastth" id="lastTh" alt="">
     <button class="shutter" id="shutterBtn" onclick="snap()"></button>
     <div class="camside" id="camSide">
-      <button class="cbtn" id="revBtn" onclick="toggleReview()" style="font-size:12px;white-space:nowrap">👁2초ON</button>
-      <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="font-size:12px;white-space:nowrap">✋안정ON</button>
-      <button class="cbtn" onclick="delLast()" style="font-size:12px;white-space:nowrap;background:#7f1d1dd9">🗑직전</button>
+      <button class="cbtn" id="revBtn" onclick="toggleReview()" style="white-space:nowrap">👁2초ON</button>
+      <button class="cbtn" id="stabBtn" onclick="toggleStab()" style="white-space:nowrap">✋안정ON</button>
+      <button class="cbtn" id="delLastBtn" onclick="delLast()" style="white-space:nowrap;background:#2563ebd9">🗑직전</button>
     </div>
   </div>
   </div>
@@ -489,13 +510,13 @@ function attachLongPress(d, id){
 
 /* ── 즉시삭제 + 실행취소 ── */
 let undoStack = [], undoTimer = null;
-function quickDelete(id){
+function quickDelete(id, undoMs){
   const idx = photos.findIndex(p=>p.id===id); if(idx<0) return;
   const rec = photos[idx];
   photos.splice(idx,1);
   undoStack.push(rec);
   removeThumbCell(id);
-  showUndoBar();
+  showUndoBar(undoMs);
 }
 function removeThumbCell(id){
   const im = document.querySelector('#thumbs img[data-pid="'+id+'"]');
@@ -503,7 +524,7 @@ function removeThumbCell(id){
   document.querySelectorAll('#thumbs .th .no').forEach((el,k)=>{ el.textContent = pvTagFor(curFolder, k); });
   const fc=$('fCnt'); if(fc && curFolder) fc.textContent = folderPhotos(curFolder).length;
 }
-function showUndoBar(){
+function showUndoBar(ms){
   if(undoTimer) clearTimeout(undoTimer);
   let bar = document.getElementById('undoBar');
   if(!bar){
@@ -517,7 +538,7 @@ function showUndoBar(){
   bar.style.display='flex';
   const m=document.getElementById('undoMsg'); if(m) m.textContent = undoStack.length+'장 삭제됨';
   try{ applyUiRot(true); }catch(e){}
-  undoTimer = setTimeout(finalizeDeletes, 8000);
+  undoTimer = setTimeout(finalizeDeletes, ms||8000);
 }
 function hideUndoBar(){ const b=document.getElementById('undoBar'); if(b) b.style.display='none'; }
 function undoDelete(){
@@ -773,7 +794,7 @@ function renderFolder(){
   if(!tdiv._ctxOff){ tdiv._ctxOff=true; tdiv.addEventListener('contextmenu', e=>e.preventDefault()); }
   tdiv.innerHTML='';
   list.forEach((p,i)=>tdiv.appendChild(makeThumbCell(p,i)));
-  requestAnimationFrame(function(){ try{ var fv=document.getElementById('folderView'); var bb=document.querySelector('#folderView .bottom'); if(fv&&bb) fv.style.paddingBottom=(bb.offsetHeight+28)+'px'; }catch(e){} });
+  requestAnimationFrame(function(){ try{ var fv=document.getElementById('folderView'); var bb=document.querySelector('#folderView .bottom'); if(fv&&bb) fv.style.paddingBottom=(fv._rot? 8 : bb.offsetHeight+28)+'px'; }catch(e){} });
 }
 
 /* ───────── 사진 크게 보기 (썸네일 클릭 → 원본, 좌우 스와이프 이전/다음) ───────── */
@@ -1117,7 +1138,7 @@ function delLast(){
   if(typeof pendingShots !== 'undefined' && Object.keys(pendingShots).length){ toast('사진 저장 마무리 중… 잠시 후 다시 눌러주세요'); return; }
   const fp = folderPhotos(curFolder);
   if(!fp.length){ toast('이 폴더에 사진이 없습니다'); return; }
-  quickDelete(fp[fp.length-1].id);
+  quickDelete(fp[fp.length-1].id, 4000);
   updateCamHead(); camLastThRefresh();
 }
 function showReview(rec){
@@ -1476,17 +1497,9 @@ function applyUiRot(force){
       cu.style.transform='';
     }
   }
-  var sb=document.getElementById('shutterBtn');
-  if(sb){
-    if(ang===90||ang===270){
-      sb.style.position='fixed'; sb.style.top='50%'; sb.style.bottom='auto';
-      sb.style.transform='translateY(-50%)'; sb.style.zIndex='95';
-      if(ang===90){ sb.style.right='12px'; sb.style.left='auto'; }
-      else { sb.style.left='12px'; sb.style.right='auto'; }
-    } else {
-      sb.style.position=''; sb.style.top=''; sb.style.bottom=''; sb.style.transform='';
-      sb.style.zIndex=''; sb.style.right=''; sb.style.left='';
-    }
+  if(cu){
+    if(ang===90||ang===270){ cu.classList.add('camland'); cu.classList.toggle('navleft', ang===270); }
+    else { cu.classList.remove('camland'); cu.classList.remove('navleft'); }
   }
   var fv=document.getElementById('folderView');
   if(fv){
@@ -1497,11 +1510,13 @@ function applyUiRot(force){
       fv.style.transformOrigin='center center';
       fv.style.transform='translate(-50%,-50%) rotate('+ang+'deg)';
       fv.style.overflowY='auto'; fv.style.background='var(--bg)'; fv.style.zIndex='40';
+      fv.classList.add('fvland'); fv.style.paddingBottom='8px';
       fv._rot=true;
     } else if(fv._rot){
       fv.style.position=''; fv.style.maxWidth=''; fv.style.margin=''; fv.style.width=''; fv.style.height='';
       fv.style.left=''; fv.style.top=''; fv.style.transformOrigin=''; fv.style.transform='';
       fv.style.overflowY=''; fv.style.background=''; fv.style.zIndex='';
+      fv.classList.remove('fvland'); fv.style.paddingBottom='210px';
       fv._rot=false;
     }
   }
