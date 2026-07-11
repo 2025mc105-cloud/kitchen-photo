@@ -100,6 +100,7 @@ public class MainActivity extends Activity {
     private PermissionRequest pendingReq;
     private ValueCallback<Uri[]> filePathCallback;
     private Uri captureUri;
+    private Uri[] lastImportUris;
     private boolean camLooping = false;
 
     private boolean webPermsOk(PermissionRequest req){
@@ -168,6 +169,7 @@ public class MainActivity extends Activity {
                     results = new Uri[]{ data.getData() };
                 }
             }
+            lastImportUris = results;
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
         }
@@ -235,6 +237,26 @@ public class MainActivity extends Activity {
     }
 
     class Bridge {
+        @JavascriptInterface public void exitApp(){
+            runOnUiThread(new Runnable(){ public void run(){ try{ finishAndRemoveTask(); }catch(Exception e){ try{ finish(); }catch(Exception e2){} } } });
+        }
+        @JavascriptInterface public void deleteImportedSources(){
+            final Uri[] uris = lastImportUris; lastImportUris = null;
+            if (uris == null || uris.length == 0) return;
+            runOnUiThread(new Runnable(){ public void run(){
+                try{
+                    java.util.ArrayList<Uri> media = new java.util.ArrayList<Uri>();
+                    for (Uri u : uris){ if (u == null) continue; Uri mm = null; try{ mm = MediaStore.getMediaUri(MainActivity.this, u); }catch(Exception e){} media.add(mm != null ? mm : u); }
+                    if (media.isEmpty()) return;
+                    if (android.os.Build.VERSION.SDK_INT >= 30){
+                        android.app.PendingIntent pi = MediaStore.createDeleteRequest(getContentResolver(), media);
+                        startIntentSenderForResult(pi.getIntentSender(), 1005, null, 0, 0, 0);
+                    } else {
+                        for (Uri mu : media){ try{ getContentResolver().delete(mu, null, null); }catch(Exception e){} }
+                    }
+                }catch(Exception e){ try{ Toast.makeText(MainActivity.this, "원본 삭제 실패 — 갤러리에서 직접 지워주세요", Toast.LENGTH_SHORT).show(); }catch(Exception e2){} }
+            }});
+        }
         private OutputStream os;
         private Uri lastUri;
         /* ── v47: 실시간 폰 폴더 저장 (내부저장소/0.점검사진/급식실점검사진/…) ── */
