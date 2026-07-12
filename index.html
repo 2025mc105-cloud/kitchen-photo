@@ -367,44 +367,47 @@ function schoolFolderName(){
   return (num? num+'_':'') + name + ty + '(' + ($('schM').value||'?') + '월' + ($('schD').value||'?') + '일 ' + ($('schH').value||'?') + '시' + ($('schMin').value||'?') + '분)';
 }
 ['schNum','schName','schType','schM','schD','schH','schMin'].forEach(id=>{ const e=$(id); if(e) e.addEventListener('input', saveMeta); });
-const SCHOOLS=[["A1","숲속해뜰유치원",37.32325,126.940076],["A3","갈뫼초등학교",37.376711,126.972265],["A4","곡란초등학교",37.373884,126.933849],["A5","관모초등학교",37.376009,126.93819],["A6","광정초등학교",37.365603,126.93064],["A7","군포대야초등학교",37.329336,126.915247],["A8","군포신기초등학교",37.338587,126.932892],["A9","군포옥천초등학교",37.343605,126.945017],["A10","군포화산초등학교",37.353034,126.932776],["A11","궁내초등학교",37.364473,126.920269],["A12","금정초등학교",37.36678,126.940848],["A13","내동초등학교",37.389256,126.979886],["A14","능내초등학교",37.354623,126.921162],["A15","당동초등학교",37.345798,126.939641],["A16","당정초등학교",37.346463,126.954791],["A17","도장초등학교",37.348571,126.92399],["A18","둔대초등학교",37.326971,126.911408],["A20","모락초등학교",37.358462,126.973111],["A21","백운초등학교",37.385867,126.974794],["A22","백운호수초등학교",37.370903,127.007306],["A23","부곡중앙초등학교",37.322781,126.940996],["A24","산본초등학교",37.368503,126.934353],["A25","송안초등학교",37.317551,126.921344],["A26","수리초등학교",37.360162,126.917986],["A27","오금초등학교",37.347726,126.925896],["A28","오전초등학교",37.354558,126.972409],["A29","왕곡초등학교",37.345347,126.980586],["A30","용호초등학교",37.341984,126.940698],["A31","의왕덕성초등학교",37.321356,126.958391],["A32","의왕초등학교",37.363529,126.968194],["A33","태을초등학교",37.371685,126.92628],["A34","한얼초등학교",37.366045,126.935557],["A35","흥진초등학교",37.35369,126.928566],["A36","갈뫼중학교",37.377468,126.974708],["A37","곡란중학교",37.37263,126.9296],["A38","궁내중학교",37.363706,126.919272],["A39","금정중학교",37.357024,126.938699],["A40","당동중학교",37.345254,126.937335],["A41","당정중학교",37.348427,126.958733],["A42","덕장중학교",37.392928,126.998497],["A43","도장중학교",37.355157,126.926842],["A44","모락중학교",37.368026,126.967569],["A45","백운중학교",37.390583,126.989928],["A46","산본중학교",37.369216,126.927302],["A47","수리중학교",37.360915,126.918433],["A48","용호중학교",37.342724,126.944286],["A49","흥진중학교",37.352838,126.928795],["A50","경기폴리텍고등학교",37.358589,126.923494],["A51","군포e비즈니스고등학교",37.362872,126.918686],["A52","군포중앙고등학교",37.323769,126.937223],["A53","모락고등학교",37.369939,126.96687],["A54","산본고등학교",37.370377,126.925803],["A55","수리고등학교",37.355109,126.920013],["A56","용호고등학교",37.342139,126.939247],["A57","의왕고등학교",37.322348,126.958325],["A58","흥진고등학교",37.352075,126.929406],["A59","경기외국어고등학교",37.347353,126.959528],["A60","군포고등학교",37.357828,126.939998],["A61","우성고등학교",37.348786,126.97986],["A62","의왕정음학교",37.394817,126.992102],["B1","송양유치원",37.747691,127.106662],["B3","가능초등학교",37.746041,127.035627],["B4","금오초등학교",37.755945,127.066008],["B5","녹양초등학교",37.763266,127.036641],["B6","동오초등학교",37.744354,127.058564],["B7","민락초등학교",37.741902,127.09481],["B8","발곡초등학교",37.728153,127.06315],["B9","버들개초등학교",37.761743,127.029465],["B10","삼현초등학교",37.751361,127.115661],["B11","새말초등학교",37.746363,127.069364],["B12","솔뫼초등학교",37.731442,127.081395],["B13","송양초등학교",37.752935,127.112139],["B14","어룡초등학교",37.747659,127.08249],["B15","의순초등학교",37.750877,127.066127],["B16","의정부부용초등학교",37.736204,127.090815],["B17","의정부서초등학교",37.740939,127.038824],["B18","의정부송산초등학교",37.746558,127.10087],["B19","의정부신곡초등학교",37.740992,127.059568],["B20","의정부용현초등학교",37.73862,127.087402],["B21","의정부장암초등학교",37.725957,127.059234],["B22","의정부중앙초등학교",37.744565,127.046887],["B23","의정부청룡초등학교",37.732826,127.055353],["B24","의정부초등학교",37.734462,127.060152],["B25","의정부호동초등학교",37.729657,127.042584],["B26","의정부호원초등학교",37.721848,127.041059],["B27","의정부효자초등학교",37.750097,127.077924],["B28","호암초등학교",37.704992,127.046202],["B29","녹양중학교",37.761766,127.027845],["B30","다온중학교",37.740899,127.037329],["B31","동암중학교",37.72188,127.058439],["B32","민락중학교",37.740552,127.095622],["B33","부용중학교",37.7354,127.091836],["B34","솔뫼중학교",37.730588,127.08257],["B35","송양중학교",37.751577,127.104451],["B36","충의중학교",37.741804,127.090343],["B37","호원중학교",37.719074,127.045141],["B38","회룡중학교",37.71499,127.043565],["B39","경민중학교",37.746288,127.025012],["B40","경기북과학고등학교",37.758847,127.019629],["B41","부용고등학교",37.736284,127.092636],["B42","송양고등학교",37.752976,127.106693],["B43","송현고등학교",37.743693,127.090853],["B44","의정부공업고등학교",37.74783,127.037926],["B45","의정부여자고등학교",37.749646,127.041292],["B46","호원고등학교",37.705342,127.044486],["B47","경민고등학교",37.747296,127.024984],["B48","경민비즈니스고등학교",37.746465,127.025502],["B49","동국대 영석고등학교",37.736658,127.074146],["B50","의정부광동고등학교",37.755349,127.036507],["B51","송민학교",37.745636,127.107165],["B53","신곡중학교",37.742898,127.06009]];
-
-/* ───────── GPS 학교 자동입력 ───────── */
-function gpsDist(la1,lo1,la2,lo2){const R=6371000,t=Math.PI/180,d1=(la2-la1)*t,d2=(lo2-lo1)*t,a=Math.sin(d1/2)**2+Math.cos(la1*t)*Math.cos(la2*t)*Math.sin(d2/2)**2;return 2*R*Math.asin(Math.sqrt(a));}
-function gpsApply(s){ $('schNum').value=s[0]; $('schName').value=s[1]; if(typeof saveMeta==='function') saveMeta(); }
+/* GPS 근처 학교 자동입력 — 카카오 로컬 API */
+const KAKAO_KEY='de2dea9ce9b46ac3968654a171d1d1a9';
+function gpsApply(name){ var el=$('schName'); if(el) el.value=name; try{ saveMeta(); }catch(e){} }
 function gpsShowPick(list){
-  const box=$('gpsPick'); if(!box) return; box.innerHTML='';
-  if(list.length<2){ box.style.display='none'; return; }
-  const t=document.createElement('div'); t.style.cssText='font-size:15px;color:var(--warn);font-weight:bold;margin-bottom:6px;'; t.textContent='가까운 학교가 여러 곳입니다 — 해당 학교를 누르세요:';
-  box.appendChild(t);
-  list.forEach(r=>{ const b=document.createElement('button');
-    b.style.cssText='display:block;width:100%;text-align:left;margin-bottom:6px;padding:14px;font-size:17px;border:2px solid var(--acc);border-radius:10px;background:var(--card2);color:var(--txt);';
-    b.textContent=r.s[0]+'   '+r.s[1]+'   ('+Math.round(r.d)+'m)';
-    b.onclick=()=>{ gpsApply(r.s); box.style.display='none'; if(typeof toast==='function') toast('선택: '+r.s[1]); };
-    box.appendChild(b); });
-  box.style.display='block';
+ const box=$('gpsPick'); if(!box) return;
+ box.innerHTML='';
+ if(!list||!list.length){ box.style.display='none'; return; }
+ const t=document.createElement('div');
+ t.style.cssText='font-size:12px;color:var(--sub);font-weight:bold;margin:6px 2px;';
+ t.textContent='근처 학교 — 탭하면 학교명 입력 (번호는 직접 입력)';
+ box.appendChild(t);
+ list.forEach(function(r){
+  const b=document.createElement('button');
+  b.style.cssText='display:block;width:100%;text-align:left;margin-bottom:4px;padding:9px 11px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:14px;';
+  b.textContent=r.name+'  ('+r.dist+'m)';
+  b.onclick=function(){ gpsApply(r.name); box.style.display='none'; if(typeof toast==='function') toast('입력: '+r.name); };
+  box.appendChild(b);
+ });
+ box.style.display='block';
 }
 let gpsBusy=false;
 function gpsFill(auto){
-  if(gpsBusy) return;
-  if(!navigator.geolocation){ if(!auto&&typeof toast==='function') toast('이 기기는 위치를 지원하지 않습니다'); return; }
-  gpsBusy=true; if(!auto&&typeof toast==='function') toast('📍 현재 위치 확인 중…');
-  navigator.geolocation.getCurrentPosition(function(pos){
+ if(gpsBusy) return;
+ if(!navigator.geolocation){ if(!auto&&typeof toast==='function') toast('이 기기는 위치를 지원하지 않습니다'); return; }
+ gpsBusy=true; if(typeof toast==='function') toast('현재 위치 확인 중…');
+ navigator.geolocation.getCurrentPosition(function(pos){
+  const la=pos.coords.latitude, lo=pos.coords.longitude;
+  fetch('https://dapi.kakao.com/v2/local/search/category.json?category_group_code=SC4&x='+lo+'&y='+la+'&radius=3000&sort=distance&size=15',{headers:{Authorization:'KakaoAK '+KAKAO_KEY}})
+   .then(function(r){ return r.json(); })
+   .then(function(j){
     gpsBusy=false;
-    const la=pos.coords.latitude, lo=pos.coords.longitude;
-    const ranked=SCHOOLS.map(s=>({s:s,d:gpsDist(la,lo,s[2],s[3])})).sort((a,b)=>a.d-b.d);
-    if(!ranked.length || ranked[0].d>3000){ if(!auto&&typeof toast==='function') toast('근처에 등록된 학교가 없습니다(수동 입력하세요)'); const bx=$('gpsPick'); if(bx) bx.style.display='none'; return; }
-    gpsApply(ranked[0].s);
-    const near=ranked.filter(r=>r.d<=250);
-    if(near.length>1){ gpsShowPick(near); if(typeof toast==='function') toast('가까운 학교 '+near.length+'곳 — 아래에서 선택'); }
-    else{ const bx=$('gpsPick'); if(bx) bx.style.display='none'; if(typeof toast==='function') toast('자동입력: '+ranked[0].s[1]+' ('+Math.round(ranked[0].d)+'m)'); }
-  }, function(err){ gpsBusy=false; if(!auto&&typeof toast==='function') toast('위치 사용 불가('+((err&&err.message)||'')+') — 수동 입력하세요'); },
-  {enableHighAccuracy:true, timeout:12000, maximumAge:30000});
+    var docs=(j&&j.documents)||[];
+    if(!docs.length){ if(typeof toast==='function') toast('근처에 학교가 없습니다 — 직접 입력'); gpsShowPick([]); return; }
+    gpsShowPick(docs.map(function(d){ return {name:d.place_name, dist:d.distance}; }));
+   })
+   .catch(function(e){ gpsBusy=false; if(typeof toast==='function') toast('학교 검색 실패 (네트워크 확인)'); });
+ }, function(err){
+  gpsBusy=false; if(!auto&&typeof toast==='function') toast('위치 권한을 확인해주세요');
+ }, {enableHighAccuracy:true, timeout:10000, maximumAge:0});
 }
-setTimeout(function(){ try{ gpsFill(true); }catch(e){} }, 1500);
 
-
-/* ───────── 홈 화면 ───────── */
 function renderHome(){
   const grid = $('folderGrid'); grid.innerHTML='';
   let total = 0, shotN = 0;
