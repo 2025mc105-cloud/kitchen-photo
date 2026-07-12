@@ -236,27 +236,6 @@ public class MainActivity extends Activity {
         });
     }
 
-    private String resolvePath(Uri u){
-        try{
-            String[] proj = { MediaStore.MediaColumns.DATA };
-            android.database.Cursor cur = getContentResolver().query(u, proj, null, null, null);
-            if (cur != null){ try{ if (cur.moveToFirst()){ int idx = cur.getColumnIndex(MediaStore.MediaColumns.DATA); if (idx >= 0){ String p = cur.getString(idx); if (p != null && p.length() > 0) return p; } } } finally { cur.close(); } }
-        }catch(Exception e){}
-        try{
-            if (android.provider.DocumentsContract.isDocumentUri(this, u)){
-                String docId = android.provider.DocumentsContract.getDocumentId(u);
-                if (docId != null && docId.contains(":")){
-                    String[] sp = docId.split(":");
-                    String type = sp[0]; String rel = sp.length > 1 ? sp[1] : "";
-                    if ("primary".equalsIgnoreCase(type)) return Environment.getExternalStorageDirectory() + "/" + rel;
-                    Uri content = MediaStore.Files.getContentUri("external");
-                    android.database.Cursor c2 = getContentResolver().query(content, new String[]{ MediaStore.MediaColumns.DATA }, "_id=?", new String[]{ rel }, null);
-                    if (c2 != null){ try{ if (c2.moveToFirst()){ int i = c2.getColumnIndex(MediaStore.MediaColumns.DATA); if (i >= 0) return c2.getString(i); } } finally { c2.close(); } }
-                }
-            }
-        }catch(Exception e){}
-        return null;
-    }
     class Bridge {
         @JavascriptInterface public void exitApp(){
             runOnUiThread(new Runnable(){ public void run(){ try{ finishAndRemoveTask(); }catch(Exception e){ try{ finish(); }catch(Exception e2){} } } });
@@ -264,22 +243,26 @@ public class MainActivity extends Activity {
         @JavascriptInterface public void deleteImportedSources(){
             final Uri[] uris = lastImportUris; lastImportUris = null;
             if (uris == null || uris.length == 0) return;
-            new Thread(new Runnable(){ public void run(){
-                int ok=0, fail=0;
-                for (Uri u : uris){
-                    if (u == null) continue;
-                    boolean done=false;
-                    try{
-                        String path = resolvePath(u);
-                        if (path != null){ java.io.File f=new java.io.File(path); if (f.exists() && f.delete()){ done=true; try{ android.media.MediaScannerConnection.scanFile(MainActivity.this, new String[]{path}, null, null); }catch(Exception e){} } }
-                    }catch(Exception e){}
-                    if (!done){ try{ if (getContentResolver().delete(u, null, null) > 0) done=true; }catch(Exception e){} }
-                    if (!done){ try{ Uri m = MediaStore.getMediaUri(MainActivity.this, u); if (m != null && getContentResolver().delete(m, null, null) > 0) done=true; }catch(Exception e){} }
-                    if (done) ok++; else fail++;
-                }
-                final int fok=ok, ffail=fail;
-                runOnUiThread(new Runnable(){ public void run(){ try{ Toast.makeText(MainActivity.this, "\uc6d0\ubcf8 "+fok+"\uc7a5 \uc0ad\uc81c"+(ffail>0?(" \u00b7 "+ffail+"\uc7a5 \uc2e4\ud328(\uc9c1\uc811 \uc0ad\uc81c)"):""), Toast.LENGTH_SHORT).show(); }catch(Exception e){} } });
-            }}).start();
+            runOnUiThread(new Runnable(){ public void run(){
+                try{
+                    java.util.ArrayList<Uri> media = new java.util.ArrayList<Uri>();
+                    for (Uri u : uris){
+                        if (u == null) continue;
+                        Uri mm = null;
+                        try{ mm = MediaStore.getMediaUri(MainActivity.this, u); }catch(Exception e){}
+                        if (mm == null){ String a = u.getAuthority(); if (a != null && a.contains("media")) mm = u; }
+                        if (mm != null) media.add(mm);
+                    }
+                    if (media.isEmpty()){ Toast.makeText(MainActivity.this, "\uc6d0\ubcf8\uc744 \uc790\ub3d9 \uc0ad\uc81c\ud560 \uc218 \uc5c6\ub294 \uc0ac\uc9c4 \u2014 \uac24\ub7ec\ub9ac\uc5d0\uc11c \uc9c1\uc811 \uc9c0\uc6b0\uc138\uc694", Toast.LENGTH_LONG).show(); return; }
+                    if (android.os.Build.VERSION.SDK_INT >= 30){
+                        android.app.PendingIntent pi = MediaStore.createDeleteRequest(getContentResolver(), media);
+                        startIntentSenderForResult(pi.getIntentSender(), 1005, null, 0, 0, 0);
+                    } else {
+                        int n=0; for (Uri mu : media){ try{ if (getContentResolver().delete(mu, null, null) > 0) n++; }catch(Exception e){} }
+                        Toast.makeText(MainActivity.this, "\uc6d0\ubcf8 "+n+"\uc7a5 \uc0ad\uc81c", Toast.LENGTH_SHORT).show();
+                    }
+                }catch(Exception e){ try{ Toast.makeText(MainActivity.this, "\uc6d0\ubcf8 \uc0ad\uc81c \uc2e4\ud328 \u2014 \uac24\ub7ec\ub9ac\uc5d0\uc11c \uc9c1\uc811 \uc9c0\uc6b0\uc138\uc694", Toast.LENGTH_SHORT).show(); }catch(Exception e2){} }
+            }});
         }
         private OutputStream os;
         private Uri lastUri;
