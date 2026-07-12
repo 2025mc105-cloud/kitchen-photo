@@ -176,7 +176,7 @@
 
 <!-- ───────── 홈 화면 ───────── -->
 <div class="view" id="homeView">
-  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v64</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
+  <h1 style="font-size:18px;margin:4px 0;"><span style="position:relative;display:inline-block">📷<span style="position:absolute;left:-1px;top:-3px;font-size:9px;font-weight:bold;color:var(--acc);background:#000a;padding:0 2px;border-radius:3px;line-height:1.2;">v65</span></span> 후드사진 · 촬영하면 자동 분류 · 총 <b id="totalCnt">0</b>장</h1>
   <div class="installbar" id="installBar">📲 이 앱을 폰에 설치할 수 있습니다 <button onclick="doInstall()">앱 설치</button></div>
   <div class="banner" id="storeBanner">⚠ 이 브라우저는 임시저장이 안 됩니다. 내보내기 전에 화면을 닫지 마세요.</div>
 
@@ -2012,11 +2012,11 @@ function phoneCam(){
   phoneCamLoop = true; $('camInput').value=''; $('camInput').click();
 }
 $('lastTh').onclick = ()=>{ const L=folderPhotos(curFolder); if(L.length) openViewer(L[L.length-1].id); };
-$('galInput').addEventListener('change', e=>{
+$('galInput').addEventListener('change', async e=>{
   const fs = Array.from(e.target.files||[]);
   if(!fs.length || !curFolder) return;
   fs.sort((a,b)=>(a.lastModified||0)-(b.lastModified||0));
-  fs.forEach(f=>addPhoto(curFolder, f, f.lastModified||Date.now()));
+  for(const f of fs){ let _b=f; try{ _b=new Blob([await f.arrayBuffer()],{type:f.type||'image/jpeg'}); }catch(e){} addPhoto(curFolder, _b, f.lastModified||Date.now()); }
   renderFolder();
   toast(fs.length+'장 추가됨');
   try{ if(window.HwangiBridge && HwangiBridge.deleteImportedSources) HwangiBridge.deleteImportedSources(); }catch(e){}
