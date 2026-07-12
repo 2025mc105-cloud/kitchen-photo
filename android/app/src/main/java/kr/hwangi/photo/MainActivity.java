@@ -33,8 +33,30 @@ public class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle b){
         super.onCreate(b);
+        // 런처 재실행 레이스 방지: 종료 중인 인스턴스로 다시 뜨면 즉시 종료
+        if (!isTaskRoot()
+            && getIntent() != null
+            && android.content.Intent.ACTION_MAIN.equals(getIntent().getAction())
+            && getIntent().hasCategory(android.content.Intent.CATEGORY_LAUNCHER)){
+            finish();
+            return;
+        }
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-        web = new WebView(this);
+        try{
+            web = new WebView(this);
+        }catch(Throwable wvErr){
+            // System WebView 업데이트 중 콜드스타트 실패 → 한 번 자동 재시도
+            if (getIntent()==null || !getIntent().getBooleanExtra("wvRetry", false)){
+                final android.content.Intent again = new android.content.Intent(this, MainActivity.class);
+                again.putExtra("wvRetry", true);
+                again.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                try{ new android.os.Handler(getMainLooper()).postDelayed(new Runnable(){ public void run(){ try{ startActivity(again); }catch(Exception e){} } }, 900); }catch(Exception e){}
+            } else {
+                try{ Toast.makeText(this, "앱 초기화 실패 — 잠시 후 다시 실행해 주세요.", Toast.LENGTH_LONG).show(); }catch(Exception e){}
+            }
+            finish();
+            return;
+        }
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -76,6 +98,18 @@ public class MainActivity extends Activity {
                             return true;
                         }
                     }catch(Exception e){ captureUri = null; }
+                }
+                // 갤러리 가져오기: 안드로이드 13+ 사진선택기 → 원본 자동삭제 가능한 URI 확보
+                if (!wantCamera && android.os.Build.VERSION.SDK_INT >= 33){
+                    try{
+                        android.content.Intent pick = new android.content.Intent(MediaStore.ACTION_PICK_IMAGES);
+                        pick.setType("image/*");
+                        int max = 100; try{ max = Math.min(max, MediaStore.getPickImagesMaxLimit()); }catch(Exception e){}
+                        if (max < 1) max = 1;
+                        pick.putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, max);
+                        startActivityForResult(pick, 1006);
+                        return true;
+                    }catch(Exception e){}
                 }
                 try{
                     android.content.Intent intent = params.createIntent();
@@ -157,7 +191,7 @@ public class MainActivity extends Activity {
             captureUri = null;
             return;
         }
-        if (requestCode == 1001){
+        if (requestCode == 1001 || requestCode == 1006){
             if (filePathCallback == null) return;
             Uri[] results = null;
             if (resultCode == Activity.RESULT_OK && data != null){
@@ -250,7 +284,18 @@ public class MainActivity extends Activity {
                         if (u == null) continue;
                         Uri mm = null;
                         try{ mm = MediaStore.getMediaUri(MainActivity.this, u); }catch(Exception e){}
-                        if (mm == null){ String a = u.getAuthority(); if (a != null && a.contains("media")) mm = u; }
+                        if (mm == null){
+                            String a = u.getAuthority();
+                            if (a != null && a.contains("media")){
+                                try{
+                                    String last = u.getLastPathSegment();
+                                    if (last != null && last.matches("\\d+")){
+                                        mm = android.content.ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, Long.parseLong(last));
+                                    }
+                                }catch(Exception e){}
+                                if (mm == null) mm = u;
+                            }
+                        }
                         if (mm != null) media.add(mm);
                     }
                     if (media.isEmpty()){ Toast.makeText(MainActivity.this, "\uc6d0\ubcf8\uc744 \uc790\ub3d9 \uc0ad\uc81c\ud560 \uc218 \uc5c6\ub294 \uc0ac\uc9c4 \u2014 \uac24\ub7ec\ub9ac\uc5d0\uc11c \uc9c1\uc811 \uc9c0\uc6b0\uc138\uc694", Toast.LENGTH_LONG).show(); return; }
