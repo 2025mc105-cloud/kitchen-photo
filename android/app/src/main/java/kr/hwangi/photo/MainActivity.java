@@ -622,7 +622,29 @@ public class MainActivity extends Activity {
                 }
             }}).start();
         }
-        @JavascriptInterface public void start(String name){
+        private java.io.OutputStream zos; private java.io.File zfile;
+@JavascriptInterface public void zopen(String sub, String name){
+ try{
+  if(zos!=null){ try{ zos.close(); }catch(Exception e){} zos=null; }
+  String p=(sub==null?"":sub).replace("..","_");
+  String nm=(name==null?"zip":name).replace("/","_").replace("..","_");
+  java.io.File dir=new java.io.File(Environment.getExternalStorageDirectory(), "0.점검사진/"+p);
+  dir.mkdirs();
+  zfile=new java.io.File(dir, nm);
+  zos=new java.io.FileOutputStream(zfile);
+ }catch(Exception e){ zos=null; zfile=null; }
+}
+@JavascriptInterface public void zappend(String b64){
+ try{ if(zos!=null) zos.write(Base64.decode(b64, Base64.DEFAULT)); }catch(Exception e){}
+}
+@JavascriptInterface public void zclose(){
+ try{ if(zos!=null){ zos.close(); if(zfile!=null){ try{ android.media.MediaScannerConnection.scanFile(MainActivity.this, new String[]{ zfile.getAbsolutePath() }, null, null); }catch(Exception e){} } } }catch(Exception e){}
+ zos=null; zfile=null;
+}
+@JavascriptInterface public void zdone(){
+ runOnUiThread(new Runnable(){ public void run(){ try{ Toast.makeText(MainActivity.this, "ZIP 저장 완료 — 파일관리자에서 카톡으로 보내세요", Toast.LENGTH_LONG).show(); }catch(Exception e){} } });
+}
+@JavascriptInterface public void start(String name){
             try{
                 ContentResolver cr = getContentResolver();
                 ContentValues v = new ContentValues();
