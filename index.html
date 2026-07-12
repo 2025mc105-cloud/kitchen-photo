@@ -2161,26 +2161,34 @@ async function exportZip(share){
   const entries = buildEntries();
   $('prog').style.display='flex'; $('progMsg').textContent='ZIP 만드는 중… ('+entries.length+'장)';
   try{
-    const zip = await buildZip(entries, r=>{ $('pfill').style.width = Math.round(r*100)+'%'; });
-    const fname = (fsSession || schoolFolderName())+'.zip';
-    if(window.HwangiBridge){   // APK 안에서는 네이티브 브리지로 다운로드 폴더에 저장
-      $('progMsg').textContent='파일 저장 중…';
-      const CH = 3*1024*1024;
-      HwangiBridge.start(fname);
-      for(let p=0; p<zip.size; p+=CH){
-        const buf = new Uint8Array(await zip.slice(p, Math.min(p+CH, zip.size)).arrayBuffer());
-        let bin=''; const SUB=32768;
-        for(let q=0; q<buf.length; q+=SUB) bin += String.fromCharCode.apply(null, buf.subarray(q, Math.min(q+SUB, buf.length)));
-        HwangiBridge.append(btoa(bin));
-        $('pfill').style.width = Math.round(100*Math.min(p+CH,zip.size)/zip.size)+'%';
-        await new Promise(r=>setTimeout(r));
-      }
-      HwangiBridge.finish();
-      $('prog').style.display='none';
-      if(share && HwangiBridge.share){ try{ HwangiBridge.share(); }catch(e){} toast('공유할 앱을 선택하세요'); }
-      else toast('다운로드 폴더에 저장: '+fname);
-      return;
-    }
+        const folder = schoolFolderName();
+        if(window.HwangiBridge && HwangiBridge.zopen){
+          const LIMIT=270*1024*1024;
+          const groups=[]; let cur=[], curSz=0;
+          for(const e of entries){ const sz=(e.blob&&e.blob.size)||0; if(cur.length&&curSz+sz>LIMIT){groups.push(cur);cur=[];curSz=0;} cur.push(e); curSz+=sz; }
+          if(cur.length) groups.push(cur);
+          const sub='ZIP급식실점검사진/'+folder;
+          for(let gi=0; gi<groups.length; gi++){
+            $('progMsg').textContent='ZIP '+(gi+1)+'/'+groups.length+' 만드는 중 ('+groups[gi].length+'장)';
+            const zpart=await buildZip(groups[gi], function(r){ $('pfill').style.width=Math.round(r)+'%'; });
+            HwangiBridge.zopen(sub, folder+' '+(gi+1)+'번압축.zip');
+            const CH=1048576;
+            for(let p=0;p<zpart.size;p+=CH){
+              const buf=new Uint8Array(await zpart.slice(p,Math.min(p+CH,zpart.size)).arrayBuffer());
+              let bin=''; const SUB=8192;
+              for(let q=0;q<buf.length;q+=SUB) bin+=String.fromCharCode.apply(null, buf.subarray(q,Math.min(q+SUB,buf.length)));
+              HwangiBridge.zappend(btoa(bin));
+              await new Promise(function(rr){ setTimeout(rr,0); });
+            }
+            HwangiBridge.zclose();
+          }
+          $('prog').style.display='none';
+          if(HwangiBridge.zdone) HwangiBridge.zdone();
+          toast(groups.length+'개로 분할 저장 완료 — 파일관리자 0.점검사진/ZIP급식실점검사진 에서 전송하세요');
+          return;
+        }
+        const zip = await buildZip(entries, function(r){ $('pfill').style.width=Math.round(r)+'%'; });
+        const fname = folder+'.zip';
     if(share && navigator.canShare){
       const file = new File([zip], fname, {type:'application/zip'});
       if(navigator.canShare({files:[file]})){
