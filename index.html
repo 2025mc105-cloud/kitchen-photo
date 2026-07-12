@@ -1611,7 +1611,23 @@ function applyUiRot(force){
 }
 setInterval(function(){ applyUiRot(false); }, 350);
 var _idleT=null;
-function _resetIdle(){ if(_idleT) clearTimeout(_idleT); _idleT=setTimeout(function(){ try{ if(window.HwangiBridge && HwangiBridge.exitApp){ HwangiBridge.exitApp(); } }catch(e){} }, 180000); }
+function _resetIdle(){
+ if(_idleT)clearTimeout(_idleT);
+ window.__idleAt=Date.now();
+ if(!window.__idleVis){window.__idleVis=1;
+  try{document.addEventListener('visibilitychange',function(){
+   if(document.visibilityState!=='visible'){if(_idleT){clearTimeout(_idleT);_idleT=null;}}
+   else{_resetIdle();}
+  });}catch(e){}
+ }
+ _idleT=setTimeout(function(){
+  try{
+   var dt=Date.now()-(window.__idleAt||0);
+   if(document.visibilityState!=='visible'||dt>200000){_resetIdle();return;}
+   if(window.HwangiBridge&&HwangiBridge.exitApp)HwangiBridge.exitApp();
+  }catch(e){}
+ },180000);
+}
 ['touchstart','mousedown','keydown','click'].forEach(function(ev){ try{ document.addEventListener(ev,_resetIdle,{passive:true,capture:true}); }catch(e){ try{document.addEventListener(ev,_resetIdle,true);}catch(e2){} } });
 try{ _resetIdle(); }catch(e){}
 window.addEventListener('orientationchange', function(){ setTimeout(function(){ applyUiRot(true); }, 250); });
