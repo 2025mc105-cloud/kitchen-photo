@@ -376,12 +376,12 @@ function gpsShowPick(list){
  if(!list||!list.length){ box.style.display='none'; return; }
  const t=document.createElement('div');
  t.style.cssText='font-size:12px;color:var(--sub);font-weight:bold;margin:6px 2px;';
- t.textContent='근처 학교 — 탭하면 학교명 입력 (번호는 직접 입력)';
+ t.textContent='근처 건물 — 탭하면 건물명 입력 (번호는 직접 입력)';
  box.appendChild(t);
  list.forEach(function(r){
   const b=document.createElement('button');
   b.style.cssText='display:block;width:100%;text-align:left;margin-bottom:4px;padding:9px 11px;border:1px solid #334155;border-radius:8px;background:#0f172a;color:#e2e8f0;font-size:14px;';
-  b.textContent=r.name+'  ('+r.dist+'m)';
+  b.textContent=r.name+'  ('+r.dist+'m, '+r.cat+')';
   b.onclick=function(){ gpsApply(r.name); box.style.display='none'; if(typeof toast==='function') toast('입력: '+r.name); };
   box.appendChild(b);
  });
@@ -393,19 +393,21 @@ function gpsFill(auto){
  if(!navigator.geolocation){ if(!auto&&typeof toast==='function') toast('이 기기는 위치를 지원하지 않습니다'); return; }
  gpsBusy=true; if(typeof toast==='function') toast('현재 위치 확인 중…');
  navigator.geolocation.getCurrentPosition(function(pos){
-  const la=pos.coords.latitude, lo=pos.coords.longitude;
-  fetch('https://dapi.kakao.com/v2/local/search/category.json?category_group_code=SC4&x='+lo+'&y='+la+'&radius=3000&sort=distance&size=15',{headers:{Authorization:'KakaoAK '+KAKAO_KEY}})
-   .then(function(r){ return r.json(); })
-   .then(function(j){
-    gpsBusy=false;
-    var docs=(j&&j.documents)||[];
-    if(!docs.length){ if(typeof toast==='function') toast('근처에 학교가 없습니다 — 직접 입력'); gpsShowPick([]); return; }
-    gpsShowPick(docs.map(function(d){ return {name:d.place_name, dist:d.distance}; }));
-   })
-   .catch(function(e){ gpsBusy=false; if(typeof toast==='function') toast('학교 검색 실패 (네트워크 확인)'); });
- }, function(err){
-  gpsBusy=false; if(!auto&&typeof toast==='function') toast('위치 권한을 확인해주세요');
- }, {enableHighAccuracy:true, timeout:10000, maximumAge:0});
+  var la=pos.coords.latitude, lo=pos.coords.longitude;
+  var cats=[['SC4','학교'],['PO3','공공기관'],['HP8','병원'],['CT1','문화시설'],['MT1','대형마트']];
+  var kws=['아파트','오피스텔','지식산업센터'];
+  var reqs=[];
+  cats.forEach(function(c){ reqs.push({url:'https://dapi.kakao.com/v2/local/search/category.json?category_group_code='+c[0]+'&x='+lo+'&y='+la+'&radius=1000&sort=distance&size=10', cat:c[1]}); });
+  kws.forEach(function(k){ reqs.push({url:'https://dapi.kakao.com/v2/local/search/keyword.json?query='+encodeURIComponent(k)+'&x='+lo+'&y='+la+'&radius=1000&sort=distance&size=10', cat:k}); });
+  var acc=[], done=0;
+  reqs.forEach(function(rq){
+   fetch(rq.url,{headers:{Authorization:'KakaoAK '+KAKAO_KEY}})
+    .then(function(r){ return r.json(); })
+    .then(function(jj){ (jj.documents||[]).forEach(function(d){ acc.push({name:d.place_name, dist:parseInt(d.distance||'0',10), cat:rq.cat}); }); })
+    .catch(function(e){})
+    .then(function(){ done++; if(done===reqs.length){ gpsBusy=false; acc.sort(function(a,b){ return a.dist-b.dist; }); var seen={}, out=[]; acc.forEach(function(p){ if(!seen[p.name] && p.name.indexOf('주차장')<0){ seen[p.name]=1; out.push(p); } }); if(!out.length){ if(typeof toast==='function') toast('근처에 건물이 없습니다 — 직접 입력'); gpsShowPick([]); return; } gpsShowPick(out.slice(0,20)); } });
+  });
+ }, function(err){ gpsBusy=false; if(!auto&&typeof toast==='function') toast('위치 권한을 확인해주세요'); }, {enableHighAccuracy:true, timeout:10000, maximumAge:0});
 }
 
 function renderHome(){
@@ -710,7 +712,7 @@ function fsSessStartFlow(){
 function zipMenu(){
   choiceBox('ZIP 파일을 어떻게 할까요?', [
     {label:'카톡·드라이브 등으로 공유', bg:'#f59e0b', fn:function(){ exportZip(true); }},
-    {label:'다운로드 폴더에 저장', bg:'#16a34a', fn:function(){ exportZip(false); }},
+    {label:'점검사진 폴더에 저장', bg:'#16a34a', fn:function(){ exportZip(false); }},
     {label:'취소', bg:'#374151', fn:null}
   ]);
 }
@@ -2202,7 +2204,7 @@ async function exportZip(share){
     document.body.appendChild(a); a.click();
     setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
     $('prog').style.display='none';
-    toast('다운로드 폴더에 저장: '+fname);
+    toast('점검사진 폴더에 저장: '+fname);
   }catch(err){
     $('prog').style.display='none';
     alert('내보내기 실패: '+err);
